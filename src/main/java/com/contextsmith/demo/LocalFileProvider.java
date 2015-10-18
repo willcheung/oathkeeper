@@ -45,7 +45,7 @@ public class LocalFileProvider implements EmailProvider {
     for (File file : files) {
       try {
         MimeMessage message = new MimeMessage(session, new FileInputStream(file));
-        if (MimeMessageUtil.isValidMessage(message)) {
+        if (MimeMessageUtil.isUsefulMessage(message)) {
           mimeMessages.add(message);
         }
       } catch (MessagingException e) {

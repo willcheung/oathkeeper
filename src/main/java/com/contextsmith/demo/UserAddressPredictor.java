@@ -24,6 +24,11 @@ public class UserAddressPredictor {
   
   public static final int MAX_ADDRESSES_TO_GUESS_FROM = 100;
   public static final int NUM_RECIPIENTS_PER_EMAIL = 1;
+  public static final double MIN_EMAIL_PREDICT_THRESHOLD = 2;
+  
+  public static Map<InternetAddress, Double> predict(List<MimeMessage> inputs) {
+    return predict(inputs, MIN_EMAIL_PREDICT_THRESHOLD);
+  }
   
   public static Map<InternetAddress, Double> predict(List<MimeMessage> inputs, 
                                                      double minThreshold) {
@@ -33,6 +38,7 @@ public class UserAddressPredictor {
     Integer maxCount = null;
     
     for (int i = 0; i < MAX_ADDRESSES_TO_GUESS_FROM; ++i) {
+      // This method may modify 'messages' list.
       Pair<InternetAddress, Integer> bestAddressCount = 
           findMostFrequentAddress(messages, bestAddress);
       bestAddress = bestAddressCount.getKey();

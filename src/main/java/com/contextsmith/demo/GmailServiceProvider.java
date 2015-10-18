@@ -47,12 +47,14 @@ public class GmailServiceProvider implements EmailProvider {
   
   private static final Logger log = LogManager.getLogger(GmailServiceProvider.class);
   
-  public static final String CLIENT_SECRET_JSON = "client_secret.json";
   public static final int MAX_CONCURRENT_THREADS = 4;
   public static final int MAX_FETCHING_RETRIES = 3;
   public static final int MAX_REQUEST_PER_BATCH = 100;
-  public static final int MAX_TERMINATION_IN_MILLIS = 10 * 1000;  // 5 secs.
-  public static final long MIN_MILLIS_BETWEEN_BATCH_REQUEST = 1000;  // 1 sec.
+  public static final int MAX_TERMINATION_IN_MILLIS = 10_000;  // 10 secs.
+  public static final long MIN_MILLIS_BETWEEN_BATCH_REQUEST = 1_000;  // 1 sec.
+  
+  public static final String CLIENT_SECRET_JSON = "client_secret.json";
+  public static final String GMAIL_THREAD_ID = "Gmail-Thread-Id";
   public static final String GMAIL_MESSAGE_ID = "Gmail-Message-Id";
   
   /** Application name. */
@@ -92,6 +94,14 @@ public class GmailServiceProvider implements EmailProvider {
   
   // Cached gmail service.
   private static Gmail service = null;
+  
+  public static String getGmailMessageId(MimeMessage message) {
+    return MimeMessageUtil.getHeader(message, GMAIL_MESSAGE_ID);
+  }
+  
+  public static String getGmailThreadId(MimeMessage message) {
+    return MimeMessageUtil.getHeader(message, GMAIL_THREAD_ID);
+  }
   
   /**
    * Creates an authorized Credential object.
@@ -197,7 +207,7 @@ public class GmailServiceProvider implements EmailProvider {
                        .build();
     return service;
   }
-  
+
   /**
    * List all Messages of the user's mailbox matching the query.
    * @param userId User's email address. The special value "me"
@@ -228,10 +238,10 @@ public class GmailServiceProvider implements EmailProvider {
     return messages;
   }
   
-  private static void filterInvalidMimeMessages(List<MimeMessage> mimeMessages) {
+  private static void filterUselessMimeMessages(List<MimeMessage> mimeMessages) {
     int numBeforeFilter = mimeMessages.size();
     for (Iterator<MimeMessage> iter = mimeMessages.iterator(); iter.hasNext();) {
-      if (!MimeMessageUtil.isValidMessage(iter.next())) {
+      if (!MimeMessageUtil.isUsefulMessage(iter.next())) {
         iter.remove();
       }
     }
@@ -242,7 +252,7 @@ public class GmailServiceProvider implements EmailProvider {
         Math.round(100.0 * numFiltered / numBeforeFilter),
         numFiltered, numBeforeFilter, numAfterFilter));
   }
-
+  
   private static BatchRequestRunnable findAvailableBatchRequestRunnable(
       BatchRequestRunnable[] runnables) {
     while (true) {
@@ -301,6 +311,7 @@ public class GmailServiceProvider implements EmailProvider {
           MimeMessage mimeMessage = new MimeMessage(
               session, new ByteArrayInputStream(emailBytes));
           mimeMessage.addHeader(GMAIL_MESSAGE_ID, message.getId());
+          mimeMessage.addHeader(GMAIL_THREAD_ID, message.getThreadId());
           synchronized (mimeMessages) {
             mimeMessages.add(mimeMessage);
           }
@@ -345,7 +356,7 @@ public class GmailServiceProvider implements EmailProvider {
       maxRetries--;
     } while (!tempMessages.isEmpty() && maxRetries != 0);
     
-    filterInvalidMimeMessages(mimeMessages);
+    filterUselessMimeMessages(mimeMessages);
     return mimeMessages;
   }
 }

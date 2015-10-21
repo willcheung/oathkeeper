@@ -27,8 +27,8 @@ public class EmailPeopleManager {
     EmailPeopleManager epm = new EmailPeopleManager();
     epm.loadMessages(messages);  // Index messages.
     Collection<MimeMessage> msgs = epm.lookupMessages(
-        new InternetAddress("Chad.Black@clarizen.com"));
-    
+        new InternetAddress("skean@enron.com"));
+   
     for (MimeMessage message : msgs) {
       message.writeTo(System.out);
     }

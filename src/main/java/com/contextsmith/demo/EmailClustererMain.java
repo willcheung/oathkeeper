@@ -20,11 +20,11 @@ public class EmailClustererMain {
   
   public static final boolean USE_ENRON_DATA = false;
   public static final String ENRON_USER = "kean-s";  // "kean-s, smith-m"
-  public static final int ENRON_MAX_MESSAGES = -1;  // -1 = unlimited
+  public static final int ENRON_MAX_MESSAGES = 1000;  // -1 = unlimited
   
   public static final String GMAIL_USER = "me";
   public static final String GMAIL_QUERY = "before:2014/8/31";
-  public static final int GMAIL_MAX_MESSAGES = 10_000;
+  public static final int GMAIL_MAX_MESSAGES = 300;
   
   public static void main(String[] args) {
     Stopwatch stopwatch = new Stopwatch();

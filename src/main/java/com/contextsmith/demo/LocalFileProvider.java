@@ -17,7 +17,7 @@ import org.apache.commons.io.FileUtils;
 public class LocalFileProvider implements EmailProvider {
   
   public static final String EMAIL_ROOT_PATH = 
-      "/Users/rcwang/data/enron_mail_20150507/maildir";
+      "maildir";
   
   public static void main(String[] args) throws IOException {
 //    provide("smith-m", null, -1);

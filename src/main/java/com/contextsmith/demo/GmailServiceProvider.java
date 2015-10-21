@@ -64,7 +64,7 @@ public class GmailServiceProvider implements EmailProvider {
   /** Directory to store user credentials for this application. */
   private static final java.io.File DATA_STORE_DIR = new java.io.File(
 //      System.getProperty("user.home"), ".credentials/rcwang@gmail.com");
-      System.getProperty("user.home"), ".credentials/wcheung@comprehend.com");
+      System.getProperty("user.home"), ".credentials/indifferenzetest@gmail.com");
 
   /** Global instance of the {@link FileDataStoreFactory}. */
   private static FileDataStoreFactory DATA_STORE_FACTORY;

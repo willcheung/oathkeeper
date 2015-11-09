@@ -134,10 +134,10 @@ public class EmailClusterNaming {
 		Map<String, Integer> domainFrequency = new HashMap<String, Integer>();
 		for (InternetAddress address : cluster) {
 			String domain = address.getAddress().split("@")[1];
-			domainFrequency.put(domain, domainFrequency.get(domain) + 1);
+			domainFrequency.put(domain, (domainFrequency.containsKey(domain) ? domainFrequency.get(domain) : 0) + 1);
 		}
 		domainFrequency = sortByValue(domainFrequency);
-		return domainFrequency.toString();// domainFrequency.keySet().iterator().next();
+		return domainFrequency.keySet().iterator().next();
 	}
 
 	public List<String> findClusterNames(Set<Set<InternetAddress>> clusters) {

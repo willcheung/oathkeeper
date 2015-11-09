@@ -6,14 +6,11 @@ import java.util.HashSet;
 import java.util.Set;
 
 import javax.mail.Address;
-import javax.mail.BodyPart;
 import javax.mail.Message.RecipientType;
 import javax.mail.MessagingException;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
-import javax.mail.internet.MimeMultipart;
-
 import org.apache.commons.validator.routines.EmailValidator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -173,29 +170,5 @@ public class MimeMessageUtil {
       return true;
     }
     return false;
-  }
-  
-  public static String getEmailContentAsText(MimeMessage message) {
-    try {
-      if (message.isMimeType("text/plain")){
-        return message.getContent().toString();
-      }else if (message.isMimeType("multipart/*")) {
-        StringBuilder sb = new StringBuilder();
-        MimeMultipart mimeMultipart = (MimeMultipart) message.getContent();
-        int count = mimeMultipart.getCount();
-        for (int i = 0; i < count; i++) {
-          BodyPart bodyPart = mimeMultipart.getBodyPart(i);
-          if (bodyPart.isMimeType("text/plain")) {
-            sb.append(bodyPart.getContent() + "\n");
-          }
-        }
-        return sb.toString();
-      } else {
-        log.warn(message.getContentType());
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return null;
   }
 }

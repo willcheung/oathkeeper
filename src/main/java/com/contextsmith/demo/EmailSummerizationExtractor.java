@@ -1,13 +1,8 @@
 package com.contextsmith.demo;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
-
-import javax.mail.internet.AddressException;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -35,9 +30,8 @@ public class EmailSummerizationExtractor {
     this.pipeline = new StanfordCoreNLP(props);
   }
   
-  public String extract(MimeMessage message) {
-    String content = MimeMessageUtil.getEmailContentAsText(message);
-    log.info("Message:\n{}", content);
+  public String extract(String content) {
+    log.debug("Message:\n{}", content);
     // Create an empty Annotation just with the given text
     Annotation document = new Annotation(content);
     // Run all Annotators on this text
@@ -63,7 +57,7 @@ public class EmailSummerizationExtractor {
       summerization = backupCandidate;
     }
     
-    log.info("-->summerization: {}  lines: {}", 
+    log.debug("summerization: {}  lines: {}", 
         TextUtil.replaceNewlines(summerization), 
         TextUtil.countLines(summerization));
        
@@ -77,19 +71,5 @@ public class EmailSummerizationExtractor {
       tokens.add(token.get(TextAnnotation.class));
     }
     return tokens; 
-  }
-  
-  public static void main(String[] args) throws AddressException {
-    List<MimeMessage> messages = EmailClustererMain.fetchEmails();
-    
-    EmailPeopleManager epm = new EmailPeopleManager();
-    epm.loadMessages(messages);  // Index messages.
-    Collection<MimeMessage> msgs = epm.lookupMessages(
-        new InternetAddress("wcheung@comprehend.com"));
-   
-    EmailSummerizationExtractor extractor = new EmailSummerizationExtractor();
-    for (MimeMessage message : msgs) {
-      extractor.extract(message);
-    }
   }
 }

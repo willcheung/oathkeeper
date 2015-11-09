@@ -27,6 +27,8 @@ import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInsta
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
@@ -101,6 +103,13 @@ public class GmailServiceProvider implements EmailProvider {
   
   public static String getGmailThreadId(MimeMessage message) {
     return MimeMessageUtil.getHeader(message, GMAIL_THREAD_ID);
+  }
+  
+
+  public static GoogleCredential createCredentialWithAccessTokenStringOnly(String accessTokenString) {
+    GoogleTokenResponse	tokenResponse = new GoogleTokenResponse();
+    tokenResponse.setAccessToken(accessTokenString);
+    return new GoogleCredential().setFromTokenResponse(tokenResponse);
   }
   
   /**
@@ -194,12 +203,8 @@ public class GmailServiceProvider implements EmailProvider {
   protected static Gmail getGmailService() {
     if (service != null) return service;
     
-    Credential credential = null;
-    try {
-      credential = authorize();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
+    Credential credential = createCredentialWithAccessTokenStringOnly(
+    		"ya29.JwLnVJ2E9fRzIAN3-3UJwNlhjCb_amfkzDNDQwnMf721zm1paNiOX0Otg1xyo9XXbv7ZPw");
     if (credential == null) return null;
     
     service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)

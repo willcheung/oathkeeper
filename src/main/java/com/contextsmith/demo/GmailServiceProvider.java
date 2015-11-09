@@ -62,6 +62,8 @@ public class GmailServiceProvider implements EmailProvider {
   /** Application name. */
   private static final String APPLICATION_NAME = 
       "Context-Smith Gmail Service Provider";
+  
+  private static final String ACCESS_TOKEN = "ya29.JwLnVJ2E9fRzIAN3-3UJwNlhjCb_amfkzDNDQwnMf721zm1paNiOX0Otg1xyo9XXbv7ZPw";
 
   /** Directory to store user credentials for this application. */
   private static final java.io.File DATA_STORE_DIR = new java.io.File(
@@ -204,7 +206,7 @@ public class GmailServiceProvider implements EmailProvider {
     if (service != null) return service;
     
     Credential credential = createCredentialWithAccessTokenStringOnly(
-    		"ya29.JwLnVJ2E9fRzIAN3-3UJwNlhjCb_amfkzDNDQwnMf721zm1paNiOX0Otg1xyo9XXbv7ZPw");
+    		ACCESS_TOKEN);
     if (credential == null) return null;
     
     service = new Gmail.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)

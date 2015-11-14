@@ -1,4 +1,4 @@
-package com.contextsmith.email.cluster;
+package com.contextsmith.demo;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,51 +13,43 @@ import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
-import com.contextsmith.api.service.NewsFeeder;
-import com.contextsmith.utils.MimeMessageUtil;
-import com.contextsmith.utils.MimeMessageUtil.AddressField;
+import com.contextsmith.demo.MimeMessageUtil.AddressField;
 
 public class EmailPeopleManager {
-
+  
   public static final AddressField[] ADDRESS_FIELDS = new AddressField[] {
-      AddressField.FROM,
-      AddressField.TO,
-      AddressField.CC,
-      AddressField.BCC
+      AddressField.FROM, AddressField.TO, AddressField.CC, AddressField.BCC
   };
-
+  
   public static void main(String[] args) throws IOException, MessagingException {
-    List<MimeMessage> messages = NewsFeeder.fetchGmails(
-        NewsFeeder.DEFAULT_GMAIL_BEFORE_DATE,
-        NewsFeeder.DEFAULT_GMAIL_ACCESS_TOKEN,
-        NewsFeeder.DEFAULT_GMAIL_MAX_MESSAGES);
-
+    List<MimeMessage> messages = EmailClustererMain.fetchEmails();
+    
     EmailPeopleManager epm = new EmailPeopleManager();
     epm.loadMessages(messages);  // Index messages.
     Collection<MimeMessage> msgs = epm.lookupMessages(
-        new InternetAddress("Chad.Black@clarizen.com"));
-
+        new InternetAddress("skean@enron.com"));
+   
     for (MimeMessage message : msgs) {
       message.writeTo(System.out);
     }
   }
-
+  
   private Map<AddressField, Map<InternetAddress, List<MimeMessage>>> fieldAddrMsgMap;
-
+  
   public EmailPeopleManager() {
     this.fieldAddrMsgMap = new HashMap<>();
   }
-
+  
   public void loadMessages(Collection<MimeMessage> messages) {
     for (MimeMessage message : messages) {
       if (!MimeMessageUtil.isUsefulMessage(message)) continue;
-
+      
       for (AddressField field : ADDRESS_FIELDS) {
-        Set<InternetAddress> addresses =
+        Set<InternetAddress> addresses = 
             MimeMessageUtil.getValidAddresses(message, field);
         if (addresses.isEmpty()) continue;
-
-        Map<InternetAddress, List<MimeMessage>> addrMsgMap =
+        
+        Map<InternetAddress, List<MimeMessage>> addrMsgMap = 
             this.fieldAddrMsgMap.get(field);
         if (addrMsgMap == null) {
           this.fieldAddrMsgMap.put(field, addrMsgMap = new HashMap<>());
@@ -72,10 +64,10 @@ public class EmailPeopleManager {
       }
     }
   }
-
+  
   public Collection<MimeMessage> lookupMessages(InternetAddress address) {
     Set<MimeMessage> allMessages = new HashSet<>();
-
+    
     for (AddressField field : ADDRESS_FIELDS) {
       Collection<MimeMessage> messages = lookupMessages(address, field);
       if (messages != null) {
@@ -85,12 +77,12 @@ public class EmailPeopleManager {
     }
     return allMessages;
   }
-
+  
   // Lookup messages that have the input address in the input field.
   // Returns null if no such messages exist.
-  public Collection<MimeMessage> lookupMessages(InternetAddress address,
+  public Collection<MimeMessage> lookupMessages(InternetAddress address, 
                                                 AddressField field) {
-    Map<InternetAddress, List<MimeMessage>> addrMsgMap =
+    Map<InternetAddress, List<MimeMessage>> addrMsgMap = 
         this.fieldAddrMsgMap.get(field);
     return (addrMsgMap == null) ? null : addrMsgMap.get(address);
   }

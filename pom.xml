@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>context-smith</groupId>
@@ -150,3 +151,118 @@
     </dependency>
   </dependencies>
 </project>
+=======
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>context-smith</groupId>
+  <artifactId>context-smith</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <build>
+    <sourceDirectory>src/main/java</sourceDirectory>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.3</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  <dependencies>
+  	<dependency>
+  		<groupId>com.google.apis</groupId>
+  		<artifactId>google-api-services-gmail</artifactId>
+  		<version>v1-rev31-1.20.0</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>com.google.api-client</groupId>
+  		<artifactId>google-api-client</artifactId>
+  		<version>1.20.0</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>com.google.oauth-client</groupId>
+  		<artifactId>google-oauth-client-jetty</artifactId>
+  		<version>1.20.0</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>javax.mail</groupId>
+  		<artifactId>javax.mail-api</artifactId>
+  		<version>1.5.4</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>com.sun.mail</groupId>
+  		<artifactId>javax.mail</artifactId>
+  		<version>1.5.4</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>com.google.code.gson</groupId>
+  		<artifactId>gson</artifactId>
+  		<version>2.3.1</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>net.sf.jung</groupId>
+  		<artifactId>jung2</artifactId>
+  		<version>2.0.1</version>
+  		<type>pom</type>
+  	</dependency>
+  	<dependency>
+  		<groupId>net.sf.jung</groupId>
+  		<artifactId>jung-graph-impl</artifactId>
+  		<version>2.0.1</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>net.sf.jung</groupId>
+  		<artifactId>jung-algorithms</artifactId>
+  		<version>2.0.1</version>
+  	</dependency>
+  	<dependency>
+      <groupId>commons-io</groupId>
+      <artifactId>commons-io</artifactId>
+      <version>2.4</version>
+    </dependency>
+  	<dependency>
+  		<groupId>org.apache.commons</groupId>
+  		<artifactId>commons-lang3</artifactId>
+  		<version>3.4</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>com.google.guava</groupId>
+  		<artifactId>guava</artifactId>
+  		<version>19.0-rc2</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>com.google.guava</groupId>
+  		<artifactId>guava-collections</artifactId>
+  		<version>r03</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>commons-validator</groupId>
+  		<artifactId>commons-validator</artifactId>
+  		<version>1.4.1</version>
+  	</dependency>
+        <dependency>
+	    <groupId>org.apache.logging.log4j</groupId>
+	    <artifactId>log4j-api</artifactId>
+	    <version>2.4.1</version>
+        </dependency>
+	<dependency>
+		<groupId>org.apache.logging.log4j</groupId>
+		<artifactId>log4j-core</artifactId>
+		<version>2.4.1</version>
+	</dependency>
+        <dependency>
+    		<groupId>edu.stanford.nlp</groupId>
+    		<artifactId>stanford-corenlp</artifactId>
+    		<version>3.5.2</version>
+	</dependency>
+	<dependency>
+    		<groupId>edu.stanford.nlp</groupId>
+    		<artifactId>stanford-corenlp</artifactId>
+    		<version>3.5.2</version>
+    		<classifier>models</classifier>
+	</dependency>
+  </dependencies>
+</project>
+>>>>>>> branch 'master' of https://github.com/willcheung/oathkeeper.git

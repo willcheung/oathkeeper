@@ -1,4 +1,4 @@
-package com.contextsmith.email.provider;
+package com.contextsmith.demo;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,17 +14,18 @@ import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.io.FileUtils;
 
-import com.contextsmith.utils.MimeMessageUtil;
-
-public class LocalFileProvider {
-
-  public static final String EMAIL_ROOT_PATH =
-      "/Users/rcwang/data/enron_mail_20150507/maildir";
-
+public class LocalFileProvider implements EmailProvider {
+  
+  public static final String EMAIL_ROOT_PATH = 
+      "maildir";
+  
   public static void main(String[] args) throws IOException {
+//    provide("smith-m", null, -1);
   }
-
-  public static List<MimeMessage> provide(String userId, long maxMessages) {
+  
+  // 'query' is not used.
+  public List<MimeMessage> provide(String userId, String query, 
+                                   long maxMessages) {
     List<MimeMessage> messages = null;
     try {
       List<File> emails = search(userId, maxMessages);
@@ -34,13 +35,13 @@ public class LocalFileProvider {
     }
     return messages;
   }
-
-  private static List<MimeMessage> fetch(List<File> files)
+  
+  private static List<MimeMessage> fetch(List<File> files) 
       throws IOException {
     List<MimeMessage> mimeMessages = new ArrayList<>();
     Properties props = new Properties();
     Session session = Session.getDefaultInstance(props, null);
-
+    
     for (File file : files) {
       try {
         MimeMessage message = new MimeMessage(session, new FileInputStream(file));
@@ -54,15 +55,15 @@ public class LocalFileProvider {
     }
     return mimeMessages;
   }
-
-  private static List<File> search(String userId, long maxMessages)
+  
+  private static List<File> search(String userId, long maxMessages) 
       throws IOException {
     File userPath = new File(EMAIL_ROOT_PATH, userId);
     if (!userPath.exists()) return null;
-
+    
     List<File> emailFiles = new ArrayList<>();
     Iterator<File> iter = FileUtils.iterateFiles(userPath, null, true);
-
+    
     while (iter.hasNext()) {
       if (maxMessages != -1 && emailFiles.size() >= maxMessages) {
         break;

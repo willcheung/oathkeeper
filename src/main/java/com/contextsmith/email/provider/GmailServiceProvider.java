@@ -1,9 +1,15 @@
 package com.contextsmith.email.provider;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -19,9 +25,14 @@ import javax.mail.internet.MimeMessage;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 
 import com.contextsmith.utils.MimeMessageUtil;
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
+import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
+import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
+import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.client.googleapis.batch.BatchRequest;
@@ -32,7 +43,9 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.repackaged.org.apache.commons.codec.binary.Base64;
+import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.gmail.Gmail;
+import com.google.api.services.gmail.GmailScopes;
 import com.google.api.services.gmail.model.ListMessagesResponse;
 import com.google.api.services.gmail.model.Message;
 import com.google.common.base.Stopwatch;
@@ -41,48 +54,70 @@ public class GmailServiceProvider {
 
   static final Logger log = LogManager.getLogger(GmailServiceProvider.class);
 
+  public static final String CLIENT_SECRET_FILE = "client_secret.json";
+  public static final String APPLICATION_NAME = "Context-Smith Gmail Service Provider";
+
+  public static final String GMAIL_THREAD_ID = "Gmail-Thread-Id";
+  public static final String GMAIL_MESSAGE_ID = "Gmail-Message-Id";
+
   public static final int MAX_CONCURRENT_THREADS = 4;
   public static final int MAX_FETCHING_RETRIES = 3;
   public static final int MAX_REQUEST_PER_BATCH = 100;
   public static final int MAX_TERMINATION_IN_MILLIS = 10_000;  // 10 secs.
-  public static final long MIN_MILLIS_BETWEEN_BATCH_REQUEST = 10_000;  // 1 sec.
+  public static final long MIN_MILLIS_BETWEEN_BATCH_REQUEST = 1_000;  // 1 sec.
 
-//  public static final String CLIENT_SECRET_JSON = "client_secret.json";
-  public static final String GMAIL_THREAD_ID = "Gmail-Thread-Id";
-  public static final String GMAIL_MESSAGE_ID = "Gmail-Message-Id";
-
-  /** Application name. */
-  private static final String APPLICATION_NAME =
-      "Context-Smith Gmail Service Provider";
-
-  /** Directory to store user credentials for this application. */
-//  private static final java.io.File DATA_STORE_DIR = new java.io.File(
-//      System.getProperty("user.home"), ".credentials/rcwang@gmail.com");
-//      System.getProperty("user.home"), ".credentials/indifferenzetester@gmail.com");
-
-  /** Global instance of the {@link FileDataStoreFactory}. */
-//  private static FileDataStoreFactory DATA_STORE_FACTORY;
-
-  /** Global instance of the JSON factory. */
-//  private static final JsonFactory JSON_FACTORY =
-//      JacksonFactory.getDefaultInstance();
-
-  /** Global instance of the scopes required by this class. */
-  /*private static final List<String> SCOPES = Arrays.asList(
-      GmailScopes.GMAIL_LABELS,
-      GmailScopes.GMAIL_READONLY
-  );*/
-
-  /** Global instance of the HTTP transport. */
-  private static HttpTransport httpTransport;
+  private static HttpTransport HTTP_TRANSPORT;
   static {
     try {
-      httpTransport = GoogleNetHttpTransport.newTrustedTransport();
-      // DATA_STORE_FACTORY = new FileDataStoreFactory(DATA_STORE_DIR);
+      HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
     } catch (GeneralSecurityException | IOException e) {
       log.error(e);
       e.printStackTrace();
     }
+  }
+
+  public static Credential authorizeAccessToken(String accessToken) {
+    checkNotNull(accessToken);
+
+    GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
+    tokenResponse.setAccessToken(accessToken);
+    return new GoogleCredential().setFromTokenResponse(tokenResponse);
+  }
+
+  /**
+   * Creates an authorized Credential object.
+   * @return an authorized Credential object.
+   * @throws IOException
+   */
+  public static Credential authorizeStoredCredential(File storedCredential)
+      throws IOException {
+    checkNotNull(storedCredential);
+
+    // Load client secrets.
+    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+    InputStream in = classLoader.getResourceAsStream(CLIENT_SECRET_FILE);
+    GoogleClientSecrets clientSecrets =
+        GoogleClientSecrets.load(JacksonFactory.getDefaultInstance(),
+                                 new InputStreamReader(in));
+
+    List<String> scopes = Arrays.asList(GmailScopes.GMAIL_READONLY);
+    FileDataStoreFactory dataStoreFactory =
+        new FileDataStoreFactory(storedCredential);
+
+    // Build flow and trigger user authorization request.
+    GoogleAuthorizationCodeFlow flow =
+        new GoogleAuthorizationCodeFlow.Builder(
+            HTTP_TRANSPORT, JacksonFactory.getDefaultInstance(),
+            clientSecrets, scopes)
+        .setDataStoreFactory(dataStoreFactory)
+        .setAccessType("offline")
+        .build();
+
+    Credential credential = new AuthorizationCodeInstalledApp(
+        flow, new LocalServerReceiver()).authorize("user");
+    log.info("Credentials saved to: {}",
+             dataStoreFactory.getDataDirectory().getAbsolutePath());
+    return credential;
   }
 
   public static String getGmailMessageId(MimeMessage message) {
@@ -91,12 +126,6 @@ public class GmailServiceProvider {
 
   public static String getGmailThreadId(MimeMessage message) {
     return MimeMessageUtil.getHeader(message, GMAIL_THREAD_ID);
-  }
-
-  public static GoogleCredential makeCredential(String accessToken) {
-    GoogleTokenResponse tokenResponse = new GoogleTokenResponse();
-    tokenResponse.setAccessToken(accessToken);
-    return new GoogleCredential().setFromTokenResponse(tokenResponse);
   }
 
   private static void filterUselessMimeMessages(List<MimeMessage> mimeMessages) {
@@ -180,45 +209,22 @@ public class GmailServiceProvider {
       Thread.sleep(100);
     }
   }
-
-  // Cached gmail service.
   private Gmail service;
   private String accessToken;
 
-  public GmailServiceProvider() {
+  private File storedCredential;
+
+  public GmailServiceProvider(File storedCredential) {
     this.service = null;
     this.accessToken = null;
+    this.storedCredential = storedCredential;
   }
 
   public GmailServiceProvider(String accessToken) {
-    this.accessToken = accessToken;
     this.service = null;
+    this.accessToken = accessToken;
+    this.storedCredential = null;
   }
-
-  /**
-   * Creates an authorized Credential object.
-   * @return an authorized Credential object.
-   * @throws IOException
-   */
-  /*protected static Credential authorize() throws IOException {
-    // Load client secrets.
-    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-    InputStream in = classLoader.getResourceAsStream(CLIENT_SECRET_JSON);
-    GoogleClientSecrets clientSecrets =
-        GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
-
-    // Build flow and trigger user authorization request.
-    GoogleAuthorizationCodeFlow flow =
-        new GoogleAuthorizationCodeFlow.Builder(
-            HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-        .setDataStoreFactory(DATA_STORE_FACTORY)
-        .setAccessType("offline")
-        .build();
-    Credential credential = new AuthorizationCodeInstalledApp(
-        flow, new LocalServerReceiver()).authorize("user");
-    log.info("Credentials saved to " + DATA_STORE_DIR.getAbsolutePath());
-    return credential;
-  }*/
 
   public List<MimeMessage> fetchMimeMessages(String userId,
                                              List<Message> messages) {
@@ -259,11 +265,13 @@ public class GmailServiceProvider {
           currRunnable = findAvailableBatchRequestRunnable(runnables);
         }
       }
+      log.debug("Waiting for {} threads to finish...", runnables.length);
       executorService.shutdown();
       executorService.awaitTermination(MAX_TERMINATION_IN_MILLIS,
                                        TimeUnit.MILLISECONDS);
       waitForAllRunnables(runnables);  // Make sure all runnables are done.
     } catch (IOException | InterruptedException e) {
+      log.error(e);
       e.printStackTrace();
     }
 
@@ -284,23 +292,31 @@ public class GmailServiceProvider {
    * @return an authorized Gmail client service
    * @throws IOException
    */
-  public synchronized Gmail getGmailService() {
+  public Gmail getGmailService() {
     if (this.service != null) return this.service;
 
-    /*Credential credential = null;
-    try {
-      credential = authorize();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }*/
-    Credential credential = makeCredential(this.accessToken);
+    Credential credential = null;
+    if (!Strings.isBlank(this.accessToken)) {
+      credential = authorizeAccessToken(this.accessToken);
+    } else if (this.storedCredential != null) {
+      try {
+        credential = authorizeStoredCredential(this.storedCredential);
+      } catch (IOException e) {
+        log.error(e);
+        e.printStackTrace();
+      }
+    }
     if (credential == null) return null;
 
     this.service = new Gmail
-        .Builder(httpTransport, JacksonFactory.getDefaultInstance(), credential)
+        .Builder(HTTP_TRANSPORT, JacksonFactory.getDefaultInstance(), credential)
         .setApplicationName(APPLICATION_NAME)
         .build();
     return this.service;
+  }
+
+  public File getStoredCredential() {
+    return this.storedCredential;
   }
 
   public List<MimeMessage> provide(String userId, String query, long maxMessages)
@@ -331,8 +347,7 @@ public class GmailServiceProvider {
    *
    * @throws IOException
    */
-  public List<Message> searchForMessages(String userId,
-                                         String query,
+  public List<Message> searchForMessages(String userId, String query,
                                          long maxMessages)
     throws IOException {
     Gmail service = getGmailService();

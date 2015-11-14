@@ -50,6 +50,8 @@ public class WhoisLookup {
 
       Set<String> values = null;
       int fieldIndex = 0;
+      // TODO(rcwang): This could potentially cause the lower priority field
+      // to be returned, rather than the highest priority one.
       for (; fieldIndex < fields.size(); ++fieldIndex) {
         values = extractWhoisFieldValues(response, fields.get(fieldIndex));
         if (values != null && !values.isEmpty()) break;

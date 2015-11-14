@@ -29,7 +29,7 @@ public class EmailPeopleManager {
   public static void main(String[] args) throws IOException, MessagingException {
     List<MimeMessage> messages = NewsFeeder.fetchGmails(
         NewsFeeder.DEFAULT_GMAIL_BEFORE_DATE,
-        NewsFeeder.DEFAULT_GMAIL_ACCESS_TOKEN,
+        NewsFeeder.DEFAULT_ACCESS_TOKEN,
         NewsFeeder.DEFAULT_GMAIL_MAX_MESSAGES);
 
     EmailPeopleManager epm = new EmailPeopleManager();

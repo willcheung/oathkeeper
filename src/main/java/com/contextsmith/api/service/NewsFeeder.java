@@ -2,6 +2,7 @@ package com.contextsmith.api.service;
 
 import static com.google.common.base.Preconditions.checkState;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Type;
@@ -62,9 +63,11 @@ public class NewsFeeder {
   public static final String START_DATE_PARAM = "startDate";
   public static final String END_DATE_PARAM = "endDate";
 
-  // Gmail settings.
-  public static final String DEFAULT_GMAIL_ACCESS_TOKEN =
-      "ya29.JwLnVJ2E9fRzIAN3-3UJwNlhjCb_amfkzDNDQwnMf721zm1paNiOX0Otg1xyo9XXbv7ZPw";
+  // Gmail configurations.
+  // Directory to store user credentials for this application.
+//  public static final String DATA_STORE_DIR = "rcwang@gmail.com";
+  public static final String DEFAULT_DATA_STORE_DIR = "indifferenzetester@gmail.com";
+  public static final String DEFAULT_ACCESS_TOKEN = "test";
   public static final String DEFAULT_GMAIL_USER = "me";
   public static final Date DEFAULT_GMAIL_AFTER_DATE =
       parseDate("2014/08/01", "yyyy/MM/dd");
@@ -201,16 +204,23 @@ public class NewsFeeder {
   public static List<MimeMessage> fetchGmails(Date beforeThisDate,
                                               String accessToken,
                                               int maxMessages)
-  throws IOException {
+    throws IOException {
     Stopwatch stopwatch = Stopwatch.createStarted();
     SimpleDateFormat df = new SimpleDateFormat("yyyy/MM/dd");
     String query = "before:" + df.format(beforeThisDate);
-
     log.info("Fetching max. {} gmails using query: \"{}\"", maxMessages, query);
-    GmailServiceProvider provider = new GmailServiceProvider(accessToken);
+
+    GmailServiceProvider provider = null;
+    if (accessToken.equals(DEFAULT_ACCESS_TOKEN)) {
+      File dataStoreFile = new File(System.getProperty("user.home"),
+                                    ".credentials/" + DEFAULT_DATA_STORE_DIR);
+      provider = new GmailServiceProvider(dataStoreFile);
+    } else {
+      provider = new GmailServiceProvider(accessToken);
+    }
+
     List<MimeMessage> messages = provider.provide(
         DEFAULT_GMAIL_USER, query, maxMessages);
-
     log.info("Fetching gmails took: {}\n", stopwatch);
     return messages;
   }

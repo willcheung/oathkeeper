@@ -22,13 +22,14 @@ import javax.mail.internet.MimeMessage;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
-import com.google.api.client.util.Strings;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.sun.mail.util.DecodingException;
 
 public class MimeMessageUtil {
 
@@ -75,16 +76,16 @@ public class MimeMessageUtil {
       Multipart content = (Multipart) contentObject;
       for (int i = 0; i < content.getCount(); i++) {
         BodyPart part = content.getBodyPart(i);
-        if (part.isMimeType("text/html")) {
-          return (String) part.getContent();
-        }
+        if (!part.isMimeType("text/html")) continue;
+
+        String text = null;
+        try { text = (String) part.getContent(); }
+        catch (DecodingException e) {}
+        if (isHtml(text)) return text;
       }
     } else if (contentObject instanceof String) {  // A simple text message
       String text = (String) contentObject;
-      // Check if this text contains HTML tags.
-      if (Pattern.compile("</\\w+>").matcher(text).find()) {
-        return text;
-      }
+      if (isHtml(text)) return text;
     }
     return null;
   }
@@ -210,6 +211,12 @@ public class MimeMessageUtil {
     return getValidAddresses(message, AddressField.FROM);
   }
 
+  // Check if this text contains HTML tags.
+  public static boolean isHtml(String text) {
+    if (Strings.isBlank(text)) return false;
+    return Pattern.compile("</\\w+>").matcher(text).find();
+  }
+
   public static boolean isUsefulMessage(MimeMessage message) {
     // Check header.
     try {
@@ -225,7 +232,7 @@ public class MimeMessageUtil {
         return false;
       }
       String messageId = message.getMessageID();
-      if (Strings.isNullOrEmpty(messageId)) {
+      if (Strings.isBlank(messageId)) {
         log.trace("Message filtered: Message ID is null or empty.");
         return false;
       }
@@ -248,7 +255,10 @@ public class MimeMessageUtil {
           }
         }
       }
-    } catch (IOException | MessagingException e) {
+    } catch (IOException e) {
+      log.error(e);
+      e.printStackTrace();
+    } catch (MessagingException e) {
       log.error(e);
     }
 

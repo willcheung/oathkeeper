@@ -1,10 +1,16 @@
 package com.contextsmith.api.service;
 
+import java.util.EnumSet;
+
+import javax.servlet.DispatcherType;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.mortbay.servlet.GzipFilter;
 
 public class ServerMain {
 
@@ -17,11 +23,11 @@ public class ServerMain {
     context.setContextPath("/");
 
     // Add Gzip compression capability.
-    /*FilterHolder holder = new FilterHolder(GzipFilter.class);
+    FilterHolder holder = new FilterHolder(GzipFilter.class);
     holder.setInitParameter("deflateCompressionLevel", "9");
     holder.setInitParameter("minGzipSize", "0");
     holder.setInitParameter("mimeTypes", "application/json");
-    context.addFilter(holder, "/*", EnumSet.of(DispatcherType.REQUEST));*/
+    context.addFilter(holder, "/*", EnumSet.of(DispatcherType.REQUEST));
 
     Server server = new Server(SERVER_PORT);
     server.setHandler(context);

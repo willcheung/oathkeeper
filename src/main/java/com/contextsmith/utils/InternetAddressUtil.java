@@ -1,0 +1,90 @@
+package com.contextsmith.utils;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.util.Iterator;
+import java.util.Set;
+
+import javax.mail.internet.InternetAddress;
+
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.validator.routines.EmailValidator;
+
+import com.google.common.collect.HashMultiset;
+import com.google.common.collect.Multiset;
+import com.google.common.collect.Sets;
+
+public class InternetAddressUtil {
+
+  public static final Set<String> COMMON_MAIL_HOST_DOMAINS =
+  Sets.newHashSet("gmail.com", "yahoo.com", "live.com", "hotmail.com",
+                  "aol.com", "mail.com", "inbox.com", "outlook.com");
+
+  // Removes invalid addresses from the input collection of 'addressesToFilter'.
+  public static void filterInvalidAddresses(
+      Set<InternetAddress> addressesToFilter,
+      Set<InternetAddress> addressesToIgnore,
+      String domainToIgnore) {
+    for (Iterator<InternetAddress> iter = addressesToFilter.iterator();
+         iter.hasNext();) {
+      InternetAddress address = iter.next();
+      if (shouldIgnore(address, domainToIgnore, addressesToIgnore)) {
+        iter.remove();
+      }
+    }
+  }
+
+  public static String findMostFrequentDomain(Set<InternetAddress> addresses) {
+    checkNotNull(addresses);
+
+    Multiset<String> domainFreqSet = HashMultiset.create();
+    for (InternetAddress address : addresses) {
+      String domain = InternetAddressUtil.getAddressDomain(address).toLowerCase();
+      if (!StringUtils.isBlank(domain)) domainFreqSet.add(domain);
+    }
+    int maxCount = 0;
+    String bestDomain = null;
+    for (String domain : domainFreqSet) {
+      int count = domainFreqSet.count(domain);
+      if (count > maxCount) {
+        maxCount = count;
+        bestDomain = domain;
+      }
+    }
+    return bestDomain;
+  }
+
+  public static String getAddressDomain(InternetAddress address) {
+    return address.getAddress().replaceFirst("^.+?@", "");
+  }
+
+  public static boolean hasDomain(InternetAddress address, String domain) {
+    return getAddressDomain(address).equalsIgnoreCase(domain);
+  }
+
+  public static boolean isCommonDomain(InternetAddress address) {
+    String userDomain = getAddressDomain(address).toLowerCase();
+    return COMMON_MAIL_HOST_DOMAINS.contains(userDomain);
+  }
+
+  // Check the validity of the e-mail address.
+  public static boolean isValidAddress(InternetAddress address) {
+    checkNotNull(address);
+    return EmailValidator.getInstance().isValid(address.getAddress());
+  }
+
+  public static boolean shouldIgnore(InternetAddress address,
+                                     String domainToIgnore,
+                                     Set<InternetAddress> addressesToIgnore) {
+    checkNotNull(address);
+    if (addressesToIgnore != null && addressesToIgnore.contains(address)) {
+      return true;
+    }
+    if (StringUtils.isNotBlank(domainToIgnore) &&
+        address.getAddress().matches("(?i).+\\b\\Q" + domainToIgnore + "\\E")) {
+      return true;
+    }
+    return false;
+  }
+
+}

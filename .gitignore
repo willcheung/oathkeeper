@@ -1,23 +1,2 @@
-# Ignore everything inside these folders.
-
-*.class
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
-*.war
-*.ear
-
-
-# General
-.DS_Store
-*.swp
-.git*
-node_modules
-.project
-.settings
-target
-.classpath
-*.class
+/bin/
+/target/

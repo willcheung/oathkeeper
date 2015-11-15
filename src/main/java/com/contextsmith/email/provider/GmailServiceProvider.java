@@ -324,15 +324,16 @@ public class GmailServiceProvider {
     List<Message> messages = searchForMessages(userId, query, maxMessages);
     if (messages == null) return null;
 
-    int maxRetries = MAX_FETCHING_RETRIES;
+    int retriesLeft = MAX_FETCHING_RETRIES;
     List<Message> tempMessages = messages;
     List<MimeMessage> mimeMessages = new ArrayList<>();
     do {
-      log.info("# of emails to fetch: " + tempMessages.size());
+      retriesLeft--;
+      log.info("[{} retry left] Still need to fetch {} emails.",
+               retriesLeft, tempMessages.size());
       mimeMessages.addAll(fetchMimeMessages(userId, tempMessages));
       tempMessages = findMissingMessages(tempMessages, mimeMessages);
-      maxRetries--;
-    } while (!tempMessages.isEmpty() && maxRetries != 0);
+    } while (!tempMessages.isEmpty() && retriesLeft > 0);
 
     filterUselessMimeMessages(mimeMessages);
     return mimeMessages;

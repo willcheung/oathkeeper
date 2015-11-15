@@ -45,7 +45,7 @@ public class ProcessUtil {
     long heapSize = Runtime.getRuntime().totalMemory() / 1024 / 1024;
     long freeSize = Runtime.getRuntime().freeMemory() / 1024 / 1024;
     long heapMaxSize = Runtime.getRuntime().maxMemory() / 1024 / 1024;
-    return String.format("%d/%d/%d MB Used",
+    return String.format("Used %d/%d/%d MB of memory.",
                          heapSize - freeSize, heapSize, heapMaxSize);
   }
 

@@ -28,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
 import com.contextsmith.utils.MimeMessageUtil;
+import com.contextsmith.utils.ProcessUtil;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp;
 import com.google.api.client.extensions.jetty.auth.oauth2.LocalServerReceiver;
@@ -276,10 +277,11 @@ public class GmailServiceProvider {
     }
 
     log.debug(String.format(
-        "[%d%%] %d out of %d fetched! (%.1f emails/sec.)",
+        "[%d%%] %d out of %d fetched at %.1f emails/sec. %s",
         Math.round(100.0 * mimeMessages.size() / messages.size()),
         mimeMessages.size(), messages.size(),
-        1000.0 * mimeMessages.size() / stopwatch.elapsed(TimeUnit.MILLISECONDS)));
+        1000.0 * mimeMessages.size() / stopwatch.elapsed(TimeUnit.MILLISECONDS),
+        ProcessUtil.getHeapConsumption()));
     return mimeMessages;
   }
 
@@ -329,7 +331,7 @@ public class GmailServiceProvider {
     List<MimeMessage> mimeMessages = new ArrayList<>();
     do {
       retriesLeft--;
-      log.info("[{} retry left] Still need to fetch {} emails.",
+      log.info("{} retry left -- still have {} emails not yet fetched.",
                retriesLeft, tempMessages.size());
       mimeMessages.addAll(fetchMimeMessages(userId, tempMessages));
       tempMessages = findMissingMessages(tempMessages, mimeMessages);

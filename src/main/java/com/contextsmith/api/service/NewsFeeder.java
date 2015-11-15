@@ -1,5 +1,6 @@
 package com.contextsmith.api.service;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.io.File;
@@ -205,15 +206,18 @@ public class NewsFeeder {
                                               String accessToken,
                                               int maxMessages)
     throws IOException {
+    checkNotNull(beforeThisDate);
+    checkNotNull(accessToken);
+
     Stopwatch stopwatch = Stopwatch.createStarted();
     SimpleDateFormat df = new SimpleDateFormat("yyyy/MM/dd");
     String query = "before:" + df.format(beforeThisDate);
-    log.info("Fetching max. {} gmails using query: \"{}\"", maxMessages, query);
+    log.info("Fetching at most {} gmails using query: \"{}\"", maxMessages, query);
 
     GmailServiceProvider provider = null;
     if (accessToken.equals(DEFAULT_ACCESS_TOKEN)) {
-      File dataStoreFile = new File(System.getProperty("user.home"),
-                                    ".credentials/" + DEFAULT_DATA_STORE_DIR);
+      File dataStoreFile = new File(
+          System.getProperty("user.home"), ".credentials/" + DEFAULT_DATA_STORE_DIR);
       provider = new GmailServiceProvider(dataStoreFile);
     } else {
       provider = new GmailServiceProvider(accessToken);
@@ -243,14 +247,7 @@ public class NewsFeeder {
 
     conn.setRequestMethod("POST");
     conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-//    conn.setRequestProperty("Accept", "*/*");
-//    conn.setRequestProperty("Content-Length", String.valueOf(json.getBytes().length));
     conn.setDoOutput(true);
-
-    /*DataOutputStream wr = new DataOutputStream(conn.getOutputStream());
-    wr.writeBytes(json);
-    wr.flush();
-    wr.close();*/
 
     OutputStream os = conn.getOutputStream();
     os.write(json.getBytes(StandardCharsets.UTF_8));

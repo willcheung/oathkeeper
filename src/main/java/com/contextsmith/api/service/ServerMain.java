@@ -4,6 +4,7 @@ import java.util.EnumSet;
 
 import javax.servlet.DispatcherType;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.server.Server;
@@ -15,7 +16,7 @@ import org.mortbay.servlet.GzipFilter;
 public class ServerMain {
 
   static final Logger log = LogManager.getLogger(ServerMain.class);
-  public static final int SERVER_PORT = 8080;
+  public static final int DEFAULT_SERVER_PORT = 8080;
 
   public static void main(String[] args) throws Exception {
     ServletContextHandler context = new ServletContextHandler(
@@ -29,7 +30,14 @@ public class ServerMain {
     holder.setInitParameter("mimeTypes", "application/json");
     context.addFilter(holder, "/*", EnumSet.of(DispatcherType.REQUEST));
 
-    Server server = new Server(SERVER_PORT);
+    int port = DEFAULT_SERVER_PORT;
+    String env = System.getenv("PORT");  // Heroku passes port via environment.
+    if (!StringUtils.isBlank(env)) {
+      try { port = Integer.valueOf(env); }
+      catch (NumberFormatException e) {}
+    }
+    Server server = new Server(port);
+    log.info("Server started listening on port {}", port);
     server.setHandler(context);
 
     ServletHolder servlet = context.addServlet(

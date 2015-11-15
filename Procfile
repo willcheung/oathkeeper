@@ -1,1 +1,1 @@
-web: java $JAVA_OPTS -cp target/classes:target/dependency/* com.contextsmith.api.service.ServerMain
+web: java $JAVA_OPTS -jar target/context-smith-0.0.1-jar-with-dependencies.jar

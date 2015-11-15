@@ -6,10 +6,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.Strings;
 
 import com.contextsmith.nlp.ahocorasick.AhoCorasick;
 import com.contextsmith.utils.ProcessUtil;
@@ -65,7 +65,7 @@ public class MentionLineProcessor implements LineProcessor<Object> {
 
       while (iter.hasNext()) {
         String value = iter.next();
-        if (!Strings.isBlank(value)) values.add(value);
+        if (!StringUtils.isBlank(value)) values.add(value);
       }
     }
 

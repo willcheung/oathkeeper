@@ -5,9 +5,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.Arrays;
 import java.util.Map;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.Strings;
 
 import com.contextsmith.nlp.annotation.FirstNameAnnotator;
 import com.contextsmith.nlp.annotation.LastNameAnnotator;
@@ -157,7 +157,7 @@ public class EnglishEmailBodyParser {
     StringBuilder builder = new StringBuilder();
     for (LineCategory category : LineCategory.values()) {
       String content = getLinesByCategory(category);
-      if (Strings.isBlank(content)) continue;
+      if (StringUtils.isBlank(content)) continue;
       builder.append(String.format("== [%s] ==%n", category));
       builder.append(content);
     }
@@ -296,19 +296,19 @@ public class EnglishEmailBodyParser {
       return !FirstNameAnnotator.getInstance().annotate(line).isEmpty() ||
              !LastNameAnnotator.getInstance().annotate(line).isEmpty();
     case HAS_FEW_TOKENS:
-      return Strings.isNotBlank(line) &&
+      return StringUtils.isNotBlank(line) &&
              EnglishScorer.tokenize(line).size() <= MAX_FEW_TOKENS;
     case HAS_MANY_TOKENS:
-      return Strings.isNotBlank(line) &&
+      return StringUtils.isNotBlank(line) &&
              EnglishScorer.tokenize(line).size() > MAX_FEW_TOKENS;
     case IS_SENTENCE:
-      return Strings.isNotBlank(line) &&
+      return StringUtils.isNotBlank(line) &&
              EnglishScorer.getInstance().computeScore(line) >= MIN_SENTENCE_SCORE;
     case IS_NOT_SENTENCE:
-      return Strings.isNotBlank(line) &&
+      return StringUtils.isNotBlank(line) &&
              EnglishScorer.getInstance().computeScore(line) < MIN_SENTENCE_SCORE;
     case EMPTY_LINE:
-      return Strings.isBlank(line);
+      return StringUtils.isBlank(line);
     default: return false;
     }
   }

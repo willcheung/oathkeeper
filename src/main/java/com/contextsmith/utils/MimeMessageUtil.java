@@ -22,7 +22,6 @@ import javax.mail.internet.MimeMessage;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.Strings;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -118,7 +117,7 @@ public class MimeMessageUtil {
     } else if (contentObject instanceof String) {  // A simple text message
       String text = (String) contentObject;
       // Check if this text contains HTML tags.
-      if (Pattern.compile("</\\w+>").matcher(text).find()) {
+      if (isHtml(text)) {
         plainText = convertHtmlToPlainText(text);
       } else {
         plainText = text;
@@ -213,7 +212,7 @@ public class MimeMessageUtil {
 
   // Check if this text contains HTML tags.
   public static boolean isHtml(String text) {
-    if (Strings.isBlank(text)) return false;
+    if (StringUtils.isBlank(text)) return false;
     return Pattern.compile("</\\w+>").matcher(text).find();
   }
 
@@ -232,7 +231,7 @@ public class MimeMessageUtil {
         return false;
       }
       String messageId = message.getMessageID();
-      if (Strings.isBlank(messageId)) {
+      if (StringUtils.isBlank(messageId)) {
         log.trace("Message filtered: Message ID is null or empty.");
         return false;
       }

@@ -23,9 +23,9 @@ import javax.mail.MessagingException;
 import javax.mail.Session;
 import javax.mail.internet.MimeMessage;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.util.Strings;
 
 import com.contextsmith.utils.MimeMessageUtil;
 import com.contextsmith.utils.ProcessUtil;
@@ -255,10 +255,11 @@ public class GmailServiceProvider {
 
         if ((i + 1) % MAX_REQUEST_PER_BATCH == 0 || i == messages.size() - 1) {
           log.debug(String.format(
-              "[%d%%] %d out of %d fetched! (%.1f emails/sec.)",
+              "[%d%%] %d out of %d fetched at %.1f emails/sec. %s",
               Math.round(100.0 * mimeMessages.size() / messages.size()),
               mimeMessages.size(), messages.size(),
-              1000.0 * mimeMessages.size() / stopwatch.elapsed(TimeUnit.MILLISECONDS)));
+              1000.0 * mimeMessages.size() / stopwatch.elapsed(TimeUnit.MILLISECONDS),
+              ProcessUtil.getHeapConsumption()));
 
           // Start fetching mails in the background.
           executorService.execute(currRunnable);
@@ -298,7 +299,7 @@ public class GmailServiceProvider {
     if (this.service != null) return this.service;
 
     Credential credential = null;
-    if (!Strings.isBlank(this.accessToken)) {
+    if (!StringUtils.isBlank(this.accessToken)) {
       credential = authorizeAccessToken(this.accessToken);
     } else if (this.storedCredential != null) {
       try {

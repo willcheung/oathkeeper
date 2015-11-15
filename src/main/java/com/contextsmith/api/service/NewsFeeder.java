@@ -27,6 +27,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -54,7 +55,7 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
 @Path("newsfeed")
-public class NewsFeeder {
+public class NewsFeeder implements Runnable {
 
   static final Logger log = LogManager.getLogger(NewsFeeder.class);
 
@@ -83,113 +84,22 @@ public class NewsFeeder {
   @GET
   @Path("create")
   @Produces(MediaType.APPLICATION_JSON)
-  public static String createResponse(
-      @QueryParam("after") Long afterUnixTimeInSec,
-      @QueryParam("before") Long beforeUnixTimeInSec,
+  public static void createResponse(
+      @QueryParam("after") Long startTimeInSec,
+      @QueryParam("before") Long endTimeInSec,
       @QueryParam("max") Integer maxMessages,
       @QueryParam("token") String accessToken,
-      @QueryParam("email") String userAddressStr,
+      @QueryParam("email") String userEmailAddr,
       @QueryParam("callback") String callbackUrl) {
 
-    if (afterUnixTimeInSec == null ||
-        beforeUnixTimeInSec == null ||
-        Strings.isBlank(accessToken) ||
-        Strings.isBlank(callbackUrl)) {
-      return EMPTY_JSON_ARRAY;
-    }
-    Stopwatch stopwatch = Stopwatch.createStarted();
-    Date afterThisDate = new Date(afterUnixTimeInSec * 1000);
-    Date beforeThisDate = new Date(beforeUnixTimeInSec * 1000);
-
-    if (maxMessages == null) maxMessages = DEFAULT_GMAIL_MAX_MESSAGES;
-    List<MimeMessage> messages = null;
-    if (QUERY_GMAIL_DATA) {
-      try {
-        messages = fetchGmails(beforeThisDate, accessToken, maxMessages);
-      } catch (IOException e) {
-        if (e instanceof GoogleJsonResponseException) {
-          return ((GoogleJsonResponseException) e).getDetails().toString();
-        } else {
-          log.error(e);
-          e.printStackTrace();
-        }
-      }
-    } else {
-      messages = fetchEnronMails(DEFAULT_ENRON_USER, maxMessages);
-    }
-    if (messages == null) return EMPTY_JSON_ARRAY;
-
-    // Predict user's e-mail addresses.
-    Set<InternetAddress> sortedAddresses =
-        UserAddressPredictor.predict(messages).keySet();
-
-    if (!Strings.isBlank(userAddressStr)) {
-      InternetAddress userAddress = null;
-      try { userAddress = new InternetAddress(userAddressStr); }
-      catch (AddressException e) {}
-      if (userAddress != null && !sortedAddresses.contains(userAddress)) {
-        log.warn("Predicted user addresses are missing: {}", userAddressStr);
-        sortedAddresses.add(userAddress);
-      }
-    }
-    // We use the user's e-mail address to obtain company's email domain;
-    // so it must *not* be empty here.
-    if (sortedAddresses.isEmpty()) return EMPTY_JSON_ARRAY;
-
-    // Extract company mail address domain.
-    String internalDomain =
-        EmailClustererUtil.findInternalDomain(sortedAddresses);
-
-    // Construct external clusters.
-    List<Set<InternetAddress>> externalClusters =
-        EmailClusterer.findExternalClusters(
-            messages, internalDomain, sortedAddresses);
-    if (externalClusters == null) return EMPTY_JSON_ARRAY;
-    EmailClustererUtil.printClusters(externalClusters);
-
-    // Construct internal clusters.
-    List<Set<InternetAddress>> internalClusters =
-        EmailClusterer.findInternalClusters(
-            messages, internalDomain, externalClusters);
-    if (internalClusters == null) return EMPTY_JSON_ARRAY;
-    EmailClustererUtil.printClusters(internalClusters);
-
-    checkState(externalClusters.size() == internalClusters.size());
-
-    if (QUERY_GMAIL_DATA) {
-      MimeMessageUtil.filterByDateRange(messages, afterThisDate, beforeThisDate);
-    }
-
-    Set<Project> projects = new TreeSet<>();
-    ProjectFactory projectFactory = new ProjectFactory().loadMessages(messages);
-    for (int i = 0; i < externalClusters.size(); ++i) {
-      Set<InternetAddress> externalCluster = externalClusters.get(i);
-      Set<InternetAddress> internalCluster = internalClusters.get(i);
-
-      log.debug("Creating project #{}...", i + 1);
-      Project project = projectFactory.createProject(
-          String.valueOf(i), externalCluster, internalCluster);
-      if (project != null) projects.add(project);
-    }
-    String json = convertProjectsToJson(projects);
-
-    try {
-      URL url = new URIBuilder(callbackUrl)
-          .addParameter(START_DATE_PARAM, Long.toString(afterUnixTimeInSec))
-          .addParameter(END_DATE_PARAM, Long.toString(beforeUnixTimeInSec))
-          .build().toURL();
-      sendHttpPost(url, json);
-    } catch (IOException e) {
-      log.error(e);
-      e.printStackTrace();
-    } catch (URISyntaxException e) {
-      log.error(e);
-      e.printStackTrace();
-    }
-
-    log.debug(json);
-    log.info("Total elapsed time: {}", stopwatch);
-    return json;
+    NewsFeeder runnable = new NewsFeeder();
+    runnable.setAccessToken(accessToken);
+    runnable.setCallbackUrl(callbackUrl);
+    runnable.setStartTimeInSec(startTimeInSec);
+    runnable.setEndTimeInSec(endTimeInSec);
+    runnable.setUserEmailAddr(userEmailAddr);
+    runnable.setMaxMessages(maxMessages);
+    new Thread(runnable).start();
   }
 
   public static List<MimeMessage> fetchEnronMails(String user,
@@ -230,14 +140,21 @@ public class NewsFeeder {
   }
 
   public static void main(String[] args) {
-    String json = createResponse(
+    /*createResponse(
         DEFAULT_GMAIL_AFTER_DATE.getTime() / 1000,
         DEFAULT_GMAIL_BEFORE_DATE.getTime() / 1000,
         QUERY_GMAIL_DATA ? DEFAULT_GMAIL_MAX_MESSAGES : DEFAULT_ENRON_MAX_MESSAGES,
         null,
         null,
-        null);
-    log.debug(json);
+        null);*/
+  }
+
+  public static Date parseDate(String dateStr, String dateFormat) {
+    try {
+      return new SimpleDateFormat(dateFormat).parse(dateStr);
+    } catch (ParseException e) {
+      return null;
+    }
   }
 
   public static int sendHttpPost(URL url, String json) throws IOException {
@@ -291,11 +208,160 @@ public class NewsFeeder {
     return gson.toJson(projects);
   }
 
-  private static Date parseDate(String dateStr, String dateFormat) {
-    try {
-      return new SimpleDateFormat(dateFormat).parse(dateStr);
-    } catch (ParseException e) {
-      return null;
+  private Long startTimeInSec;
+  private Long endTimeInSec;
+  private Integer maxMessages;
+  private String accessToken;
+  private String userEmailAddr;
+  private String callbackUrl;
+
+  public String getAccessToken() {
+    return this.accessToken;
+  }
+
+  public String getCallbackUrl() {
+    return this.callbackUrl;
+  }
+
+  public Long getEndTimeInSec() {
+    return this.endTimeInSec;
+  }
+
+  public Integer getMaxMessages() {
+    return this.maxMessages;
+  }
+
+  public Long getStartTimeInSec() {
+    return this.startTimeInSec;
+  }
+
+  public String getUserEmailAddr() {
+    return this.userEmailAddr;
+  }
+
+  @Override
+  public void run() {
+    if (this.startTimeInSec == null ||
+        this.endTimeInSec == null ||
+        StringUtils.isBlank(this.accessToken) ||
+        StringUtils.isBlank(this.callbackUrl)) {
+      return;
     }
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    Date afterThisDate = new Date(this.startTimeInSec * 1000);
+    Date beforeThisDate = new Date(this.endTimeInSec * 1000);
+
+    if (this.maxMessages == null) this.maxMessages = DEFAULT_GMAIL_MAX_MESSAGES;
+    List<MimeMessage> messages = null;
+    if (QUERY_GMAIL_DATA) {
+      try {
+        messages = fetchGmails(beforeThisDate, this.accessToken, this.maxMessages);
+      } catch (IOException e) {
+        if (e instanceof GoogleJsonResponseException) {
+          log.error(((GoogleJsonResponseException) e).getDetails().toString());
+        } else {
+          log.error(e);
+          e.printStackTrace();
+        }
+      }
+    } else {
+      messages = fetchEnronMails(DEFAULT_ENRON_USER, this.maxMessages);
+    }
+    if (messages == null) return;
+
+    // Predict user's e-mail addresses.
+    Set<InternetAddress> sortedAddresses =
+        UserAddressPredictor.predict(messages).keySet();
+
+    if (!Strings.isBlank(this.userEmailAddr)) {
+      InternetAddress userAddress = null;
+      try { userAddress = new InternetAddress(this.userEmailAddr); }
+      catch (AddressException e) {}
+      if (userAddress != null && !sortedAddresses.contains(userAddress)) {
+        log.warn("Predicted user addresses are missing: {}", this.userEmailAddr);
+        sortedAddresses.add(userAddress);
+      }
+    }
+    // We use the user's e-mail address to obtain company's email domain;
+    // so it must *not* be empty here.
+    if (sortedAddresses.isEmpty()) return;
+
+    // Extract company mail address domain.
+    String internalDomain =
+        EmailClustererUtil.findInternalDomain(sortedAddresses);
+
+    // Construct external clusters.
+    List<Set<InternetAddress>> externalClusters =
+        EmailClusterer.findExternalClusters(
+            messages, internalDomain, sortedAddresses);
+    if (externalClusters == null) return;
+    EmailClustererUtil.printClusters(externalClusters);
+
+    // Construct internal clusters.
+    List<Set<InternetAddress>> internalClusters =
+        EmailClusterer.findInternalClusters(
+            messages, internalDomain, externalClusters);
+    if (internalClusters == null) return;
+    EmailClustererUtil.printClusters(internalClusters);
+
+    checkState(externalClusters.size() == internalClusters.size());
+
+    if (QUERY_GMAIL_DATA) {
+      MimeMessageUtil.filterByDateRange(messages, afterThisDate, beforeThisDate);
+    }
+
+    Set<Project> projects = new TreeSet<>();
+    ProjectFactory projectFactory = new ProjectFactory().loadMessages(messages);
+    for (int i = 0; i < externalClusters.size(); ++i) {
+      Set<InternetAddress> externalCluster = externalClusters.get(i);
+      Set<InternetAddress> internalCluster = internalClusters.get(i);
+
+      log.debug("Creating project #{}...", i + 1);
+      Project project = projectFactory.createProject(
+          String.valueOf(i), externalCluster, internalCluster);
+      if (project != null) projects.add(project);
+    }
+    String json = convertProjectsToJson(projects);
+
+    try {
+      URL url = new URIBuilder(this.callbackUrl)
+          .addParameter(START_DATE_PARAM, Long.toString(this.startTimeInSec))
+          .addParameter(END_DATE_PARAM, Long.toString(this.endTimeInSec))
+          .build().toURL();
+      sendHttpPost(url, json);
+    } catch (IOException e) {
+      log.error(e);
+      e.printStackTrace();
+    } catch (URISyntaxException e) {
+      log.error(e);
+      e.printStackTrace();
+    }
+
+    log.debug(json);
+    log.info("Total elapsed time: {}", stopwatch);
+  }
+
+  public void setAccessToken(String accessToken) {
+    this.accessToken = accessToken;
+  }
+
+  public void setCallbackUrl(String callbackUrl) {
+    this.callbackUrl = callbackUrl;
+  }
+
+  public void setEndTimeInSec(Long endTimeInSec) {
+    this.endTimeInSec = endTimeInSec;
+  }
+
+  public void setMaxMessages(Integer maxMessages) {
+    this.maxMessages = maxMessages;
+  }
+
+  public void setStartTimeInSec(Long startTimeInSec) {
+    this.startTimeInSec = startTimeInSec;
+  }
+
+  public void setUserEmailAddr(String userEmailAddr) {
+    this.userEmailAddr = userEmailAddr;
   }
 }

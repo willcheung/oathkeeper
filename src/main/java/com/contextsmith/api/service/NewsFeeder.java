@@ -92,6 +92,17 @@ public class NewsFeeder implements Runnable {
       @QueryParam("email") String userEmailAddr,
       @QueryParam("callback") String callbackUrl) {
 
+    String request = String.format(
+        "Request received:%n" +
+        "User Email: %s%n" +
+        "Date Range: %d - %d%n" +
+        "# Messages: %d%n" +
+        "     Token: %s%n" +
+        "  Callback: %s",
+        userEmailAddr, startTimeInSec, endTimeInSec, maxMessages,
+        accessToken, callbackUrl);
+    log.info(request);
+
     NewsFeeder runnable = new NewsFeeder();
     runnable.setAccessToken(accessToken);
     runnable.setCallbackUrl(callbackUrl);
@@ -99,6 +110,11 @@ public class NewsFeeder implements Runnable {
     runnable.setEndTimeInSec(endTimeInSec);
     runnable.setUserEmailAddr(userEmailAddr);
     runnable.setMaxMessages(maxMessages);
+
+    // TODO(rcwang): Use ExecutorService
+//    ExecutorService executor = Executors.newCachedThreadPool();
+//    executor.submit(runnable);
+
     new Thread(runnable).start();
   }
 
@@ -308,6 +324,9 @@ public class NewsFeeder implements Runnable {
 
     if (QUERY_GMAIL_DATA) {
       MimeMessageUtil.filterByDateRange(messages, afterThisDate, beforeThisDate);
+      SimpleDateFormat df = new SimpleDateFormat("MM/dd/yyyy");
+      log.debug("{} messages found between {} and {}", messages.size(),
+                df.format(afterThisDate), df.format(beforeThisDate));
     }
 
     Set<Project> projects = new TreeSet<>();

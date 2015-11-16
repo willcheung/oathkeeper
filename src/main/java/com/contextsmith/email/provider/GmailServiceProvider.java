@@ -64,7 +64,6 @@ public class GmailServiceProvider {
   public static final int MAX_CONCURRENT_THREADS = 4;
   public static final int MAX_FETCHING_RETRIES = 3;
   public static final int MAX_REQUEST_PER_BATCH = 100;
-  public static final int MAX_TERMINATION_IN_MILLIS = 10_000;  // 10 secs.
   public static final long MIN_MILLIS_BETWEEN_BATCH_REQUEST = 1_000;  // 1 sec.
 
   private static HttpTransport HTTP_TRANSPORT;
@@ -168,7 +167,9 @@ public class GmailServiceProvider {
   }
 
   private static JsonBatchCallback<Message> makeJsonBatchCallback(
-      final List<MimeMessage> mimeMessages) {
+      final List<MimeMessage> mimeMessages,
+      final int maxMessages,
+      final Stopwatch stopwatch) {
     return new JsonBatchCallback<Message>() {
       @Override
       public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders)
@@ -189,6 +190,16 @@ public class GmailServiceProvider {
           mimeMessage.addHeader(GMAIL_THREAD_ID, message.getThreadId());
           synchronized (mimeMessages) {
             mimeMessages.add(mimeMessage);
+
+            if (mimeMessages.size() % MAX_REQUEST_PER_BATCH == 0 ||
+                mimeMessages.size() == maxMessages) {
+              log.debug(String.format(
+                  "[%d%%] %d/%d fetched @ %.1f emails/sec. %s",
+                  Math.round(100.0 * mimeMessages.size() / maxMessages),
+                  mimeMessages.size(), maxMessages,
+                  1000.0 * mimeMessages.size() / stopwatch.elapsed(TimeUnit.MILLISECONDS),
+                  ProcessUtil.getHeapConsumption()));
+            }
           }
         } catch (MessagingException e) {
           e.printStackTrace();
@@ -210,9 +221,9 @@ public class GmailServiceProvider {
       Thread.sleep(100);
     }
   }
+
   private Gmail service;
   private String accessToken;
-
   private File storedCredential;
 
   public GmailServiceProvider(File storedCredential) {
@@ -235,7 +246,8 @@ public class GmailServiceProvider {
 
     // Create callback.
     final List<MimeMessage> mimeMessages = new ArrayList<MimeMessage>();
-    JsonBatchCallback<Message> callback = makeJsonBatchCallback(mimeMessages);
+    JsonBatchCallback<Message> callback = makeJsonBatchCallback(
+        mimeMessages, messages.size(), Stopwatch.createStarted());
 
     int numThreads = Math.min(Runtime.getRuntime().availableProcessors(),
                               MAX_CONCURRENT_THREADS);
@@ -243,7 +255,6 @@ public class GmailServiceProvider {
     BatchRequestRunnable currRunnable = findAvailableBatchRequestRunnable(runnables);
     ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
 
-    Stopwatch stopwatch = Stopwatch.createStarted();
     try {
       // Batch all mail requests.
       for (int i = 0; i < messages.size(); ++i) {
@@ -254,35 +265,18 @@ public class GmailServiceProvider {
              .queue(currRunnable.getBatchRequest(), callback);
 
         if ((i + 1) % MAX_REQUEST_PER_BATCH == 0 || i == messages.size() - 1) {
-          log.debug(String.format(
-              "[%d%%] %d out of %d fetched at %.1f emails/sec. %s",
-              Math.round(100.0 * mimeMessages.size() / messages.size()),
-              mimeMessages.size(), messages.size(),
-              1000.0 * mimeMessages.size() / stopwatch.elapsed(TimeUnit.MILLISECONDS),
-              ProcessUtil.getHeapConsumption()));
-
           // Start fetching mails in the background.
           executorService.execute(currRunnable);
           Thread.sleep(MIN_MILLIS_BETWEEN_BATCH_REQUEST);
           currRunnable = findAvailableBatchRequestRunnable(runnables);
         }
       }
-      log.debug("Waiting for {} threads to finish...", runnables.length);
       executorService.shutdown();
-      executorService.awaitTermination(MAX_TERMINATION_IN_MILLIS,
-                                       TimeUnit.MILLISECONDS);
       waitForAllRunnables(runnables);  // Make sure all runnables are done.
     } catch (IOException | InterruptedException e) {
       log.error(e);
       e.printStackTrace();
     }
-
-    log.debug(String.format(
-        "[%d%%] %d out of %d fetched at %.1f emails/sec. %s",
-        Math.round(100.0 * mimeMessages.size() / messages.size()),
-        mimeMessages.size(), messages.size(),
-        1000.0 * mimeMessages.size() / stopwatch.elapsed(TimeUnit.MILLISECONDS),
-        ProcessUtil.getHeapConsumption()));
     return mimeMessages;
   }
 

@@ -6,6 +6,7 @@ import java.util.Arrays;
  * A state represents an element in the Aho-Corasick tree.
  */
 public class RegularState extends State {
+  private static final long serialVersionUID = -3246379071336080726L;
   private static final char[] EMPTY_CHARS = new char[0];
 
   // if the map has size 0, keys is null, states is null

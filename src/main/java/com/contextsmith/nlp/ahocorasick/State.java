@@ -1,8 +1,11 @@
 package com.contextsmith.nlp.ahocorasick;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
-public abstract class State {
+public abstract class State implements Serializable {
+
+  private static final long serialVersionUID = -2433486614605841113L;
 
   // Same story. here's an inlined set of ints backed by an array of ints.
   private static final int[] EMPTY_INTS = new int[0];

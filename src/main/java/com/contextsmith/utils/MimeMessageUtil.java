@@ -1,6 +1,7 @@
 package com.contextsmith.utils;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
@@ -11,10 +12,10 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 import javax.mail.Address;
-import javax.mail.BodyPart;
 import javax.mail.Message.RecipientType;
 import javax.mail.MessagingException;
 import javax.mail.Multipart;
+import javax.mail.Part;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
@@ -24,8 +25,11 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
+import org.jsoup.safety.Whitelist;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.sun.mail.util.DecodingException;
@@ -36,19 +40,67 @@ public class MimeMessageUtil {
 
   static final Logger log = LogManager.getLogger(MimeMessageUtil.class);
 
-  public static final String NO_REPLY_ADDR_RE = "(?i).*?reply.*?@.+";
-  public static final String GIBBERISH_ADDR_RE = "(?i).*?([a-z]+[0-9]+){3,}.*?@.+";
-  public static final String LIST_UNSUBSCRIBE_HEADER = "List-Unsubscribe";
-  public static final String BODY_SUBSCRIBE_WORD = "subscribe";
   public static final String MIME_MESSAGE_ID_HEADER = "Message-ID";
 
+  // Mime types.
+  public static final String TEXT_PLAIN_TYPE = "text/plain";
+  public static final String TEXT_HTML_TYPE = "text/html";
+  public static final String TEXT_CALENDAR_TYPE = "text/calendar";
+
+  public static void collectPartsRecursively(
+      Part message, Multimap<String, String> multimap)
+      throws IOException, MessagingException {
+    Object contentObject = null;
+    try { contentObject = message.getContent(); }
+    catch (DecodingException e) {}
+
+    if (contentObject instanceof Multipart) {
+      log.trace("MimeMessage contains: multipart");
+      Multipart parts = (Multipart) contentObject;
+      for (int i = 0; i < parts.getCount(); i++) {
+        // Recursive calls.
+        collectPartsRecursively(parts.getBodyPart(i), multimap);
+      }
+    } else if (message.isMimeType(TEXT_PLAIN_TYPE)) {
+      log.trace("MimeMessage contains: " + TEXT_PLAIN_TYPE);
+      String s = contentToString(contentObject);
+      if (StringUtils.isNotBlank(s)) multimap.put(TEXT_PLAIN_TYPE, s.trim());
+
+    } else if (message.isMimeType(TEXT_HTML_TYPE)) {
+      log.trace("MimeMessage contains: " + TEXT_HTML_TYPE);
+      String s = contentToString(contentObject);
+      if (StringUtils.isNotBlank(s)) multimap.put(TEXT_HTML_TYPE, s.trim());
+
+    } else if (message.isMimeType(TEXT_CALENDAR_TYPE)) {
+      log.trace("MimeMessage contains: " + TEXT_CALENDAR_TYPE);
+      String s = contentToString(contentObject);
+      if (StringUtils.isNotBlank(s)) multimap.put(TEXT_CALENDAR_TYPE, s.trim());
+
+    } /*else if (contentObject instanceof String) {  // A simple text message
+      String text = (String) contentObject;
+      log.trace("string: {}", text);
+      // Check if this text contains HTML tags.
+      if (isHtml(text)) result.put(TEXT_HTML_TYPE, text);
+      else result.put(TEXT_PLAIN_TYPE, text);
+    }*/
+  }
+
+  public static String contentToString(Object obj) {
+    if (obj instanceof InputStream) {
+      return FileUtil.readStreamToString((InputStream) obj);
+    } else if (obj instanceof String) {
+      return (String) obj;
+    }
+    return null;
+  }
+
   public static String convertHtmlToPlainText(String html) {
-    Document doc = Jsoup.parse(html);
+    /*Document doc = Jsoup.parse(html);
     StringBuilder builder = new StringBuilder();
     for (Element e : doc.select("p")) {
       builder.append(e.text()).append(System.lineSeparator());
     }
-    return builder.toString();
+    return builder.toString();*/
 
     /* if(html==null)
         return html;
@@ -59,16 +111,29 @@ public class MimeMessageUtil {
     String s = document.html().replaceAll("\\\\n", "\n");
     return Jsoup.clean(s, "", Whitelist.none(), new Document.OutputSettings().prettyPrint(false));
     */
-    /*
-     // get pretty printed html with preserved br and p tags
-    String prettyPrintedBodyFragment = Jsoup.clean(bodyHtml, "", Whitelist.none().addTags("br", "p"), new OutputSettings().prettyPrint(true));
-    // get plain text with preserved line breaks by disabled prettyPrint
-    return Jsoup.clean(prettyPrintedBodyFragment, "", Whitelist.none(), new OutputSettings().prettyPrint(false));
-     */
+
+     // Get pretty printed HTML with preserved br and p tags.
+    String s = Jsoup.clean(html, "", Whitelist.none().addTags("br", "p"),
+                           new Document.OutputSettings().prettyPrint(true));
+    // Get plain text with preserved line breaks by disabled prettyPrint
+    return Jsoup.clean(s, "", Whitelist.none(),
+                       new Document.OutputSettings().prettyPrint(false));
   }
 
-  public static String extractHtmlText(MimeMessage message)
+  /*public static String extractHtmlText(MimeMessage message)
       throws IOException, MessagingException {
+    ListMultimap<String, String> multimap = ArrayListMultimap.create();
+    collectPartsRecursively(message, multimap);
+
+    StringBuilder builder = new StringBuilder();
+    List<String> htmls = multimap.get(TEXT_HTML_TYPE);
+    if (htmls != null) {
+      for (String html : htmls) {
+        if (!isHtml(html)) continue;
+        builder.append(html).append(System.lineSeparator());
+      }
+    }
+
     Object contentObject = message.getContent();
 
     if (contentObject instanceof Multipart) {
@@ -86,21 +151,23 @@ public class MimeMessageUtil {
       String text = (String) contentObject;
       if (isHtml(text)) return text;
     }
-    return null;
-  }
+    return builder.toString();
+  }*/
 
-  public static String extractPlainText(MimeMessage message)
+  /*public static String extractPlainText(MimeMessage message)
       throws IOException, MessagingException {
     String plainText = null;
     Object contentObject = message.getContent();
 
     if (contentObject instanceof Multipart) {
-      Multipart content = (Multipart) contentObject;
+      log.debug("multipart");
+      Multipart parts = (Multipart) contentObject;
       BodyPart plainTextPart = null;
       BodyPart htmlTextPart = null;
 
-      for (int i = 0; i < content.getCount(); i++) {
-        BodyPart part = content.getBodyPart(i);
+      for (int i = 0; i < parts.getCount(); i++) {
+        BodyPart part = parts.getBodyPart(i);
+        log.debug("bodypart: {}", part.getContent());
         if (part.isMimeType("text/plain")) {
           plainTextPart = part;
           break;  // Found plain text, exit.
@@ -116,6 +183,7 @@ public class MimeMessageUtil {
       }
     } else if (contentObject instanceof String) {  // A simple text message
       String text = (String) contentObject;
+      log.debug("string: {}", text);
       // Check if this text contains HTML tags.
       if (isHtml(text)) {
         plainText = convertHtmlToPlainText(text);
@@ -124,6 +192,31 @@ public class MimeMessageUtil {
       }
     }
     return plainText;
+  }*/
+
+  public static String extractPlainText(MimeMessage message)
+      throws IOException, MessagingException {
+    ListMultimap<String, String> multimap = ArrayListMultimap.create();
+    collectPartsRecursively(message, multimap);
+
+    StringBuilder builder = new StringBuilder();
+    for (String plain : multimap.get(TEXT_PLAIN_TYPE)) {
+      if (StringUtils.isNotBlank(plain)) {
+        log.trace("Found plain text: {}", plain);
+        builder.append(plain).append(System.lineSeparator());
+      }
+    }
+    if (builder.length() > 0) return builder.toString();
+
+    // We only look for HTML parts when there is no plain-text parts.
+    for (String html : multimap.get(TEXT_HTML_TYPE)) {
+      String plain = convertHtmlToPlainText(html);
+      if (StringUtils.isNotBlank(plain)) {
+        log.trace("Converted from HTML: {}", plain);
+        builder.append(plain).append(System.lineSeparator());
+      }
+    }
+    return builder.toString();
   }
 
   public static void filterByDateRange(List<MimeMessage> messages,
@@ -173,6 +266,9 @@ public class MimeMessageUtil {
       for (Address address : addresses) {
         InternetAddress addr = (InternetAddress) address;
         if (InternetAddressUtil.isValidAddress(addr)) {
+          // Lowercase all email addresses.
+          addr.setAddress(addr.getAddress().toLowerCase());
+
           // Converts encoding and ensures personal field is populated.
           String personal = addr.getPersonal();
           if (personal != null) {
@@ -214,98 +310,6 @@ public class MimeMessageUtil {
   public static boolean isHtml(String text) {
     if (StringUtils.isBlank(text)) return false;
     return Pattern.compile("</\\w+>").matcher(text).find();
-  }
-
-  public static boolean isUsefulMessage(MimeMessage message) {
-    // Check header.
-    try {
-      Date date = message.getSentDate();
-      if (date == null) {
-        log.trace("Message filtered: Missing 'Date' field.");
-        return false;
-      }
-      String[] unsubscribeList = message.getHeader(LIST_UNSUBSCRIBE_HEADER);
-      if (unsubscribeList != null && unsubscribeList.length > 0) {
-        log.trace("Message filtered: Contains header '{}'",
-                  LIST_UNSUBSCRIBE_HEADER);
-        return false;
-      }
-      String messageId = message.getMessageID();
-      if (StringUtils.isBlank(messageId)) {
-        log.trace("Message filtered: Message ID is null or empty.");
-        return false;
-      }
-      String htmlText = extractHtmlText(message);
-      if (htmlText != null &&
-          StringUtils.containsIgnoreCase(htmlText, BODY_SUBSCRIBE_WORD)) {
-        log.trace("Message filtered: Message is HTML and contains '{}'",
-                  BODY_SUBSCRIBE_WORD);
-        return false;
-      }
-      // Check if this is a calendar event.
-      Object contentObject = message.getContent();
-      if (contentObject instanceof Multipart) {
-        Multipart content = (Multipart) contentObject;
-        for (int i = 0; i < content.getCount(); i++) {
-          BodyPart part = content.getBodyPart(i);
-          if (part.isMimeType("text/calendar")) {
-            log.trace("Message filtered: Message is a calendar event.");
-            return false;
-          }
-        }
-      }
-    } catch (IOException e) {
-      log.error(e);
-      e.printStackTrace();
-    } catch (MessagingException e) {
-      log.error(e);
-    }
-
-    // Check sender.
-    Set<InternetAddress> senders = getValidSenders(message);
-    if (senders.size() != 1) {
-      log.trace("Message filtered: # of sender is not 1.");
-      return false;
-    }
-    String senderAddr = senders.iterator().next().getAddress();
-    if (senderAddr.matches(NO_REPLY_ADDR_RE)) {
-      log.trace("Message filtered: Sender has no-reply address '{}'", senderAddr);
-      return false;
-    }
-    if (senderAddr.matches(GIBBERISH_ADDR_RE)) {
-      log.trace("Message filtered: Sender has gibberish address '{}'", senderAddr);
-      return false;
-    }
-
-    // Check reply-to.
-    Set<InternetAddress> replyToAddrs = getValidReplyTo(message);
-    if (!replyToAddrs.isEmpty()) {
-      if (replyToAddrs.size() > 1) {
-        log.trace("Message filtered: Has more than one reply-to addresses.");
-        return false;
-      }
-      String replyToAddr = replyToAddrs.iterator().next().getAddress();
-      if (replyToAddr.matches(NO_REPLY_ADDR_RE)) {
-        log.trace("Message filtered: Reply-to has no-reply address '{}'", replyToAddr);
-        return false;
-      }
-      if (replyToAddr.matches(GIBBERISH_ADDR_RE)) {
-        log.trace("Message filtered: Reply-to has gibberish address '{}'", replyToAddr);
-        return false;
-      }
-    }
-
-    // Check recipients.
-    Set<InternetAddress> recipients = getValidRecipients(message);
-    if (recipients.isEmpty()) {
-      log.trace("Message filtered: No valid recipients.");
-      return false;
-    }
-    if (senders.equals(recipients)) {
-      log.trace("Message filtered: Sender is recipient.");
-      return false;
-    }
-    return true;
   }
 
   // For debugging purpose.

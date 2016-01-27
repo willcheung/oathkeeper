@@ -73,8 +73,8 @@ abstract class AbstractAnnotator implements Annotatable {
   private AhoCorasick ahoCorasick;  // A super efficient matching algorithm.
   private List<Mention> mentionList;  // Required for AhoCorasick.
   private Set<String> stopwords;
-
   private String annotatorType;
+
   private boolean isIgnoreCase;
   private boolean isTitleCase;
   private boolean isPrefixMatch;
@@ -82,7 +82,6 @@ abstract class AbstractAnnotator implements Annotatable {
   private boolean outputLongestSpan;
   private int minChars;
   private int priority;
-
   public AbstractAnnotator(String annotatorType) {
     checkArgument(annotatorType != null, "Annotator ID cannot be null");
 
@@ -252,6 +251,10 @@ abstract class AbstractAnnotator implements Annotatable {
       }
     }
     return annotations;
+  }
+
+  public void setAhoCorasick(AhoCorasick ahoCorasick) {
+    this.ahoCorasick = ahoCorasick;
   }
 
   public void setIgnoreCase(boolean tryIgnoreCase) {

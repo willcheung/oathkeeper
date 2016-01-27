@@ -9,6 +9,7 @@ import com.google.common.primitives.Chars;
  * A state represents an element in the Aho-Corasick tree.
  */
 public class RootState extends State {
+  private static final long serialVersionUID = -7904440028666073715L;
   private final Map<Character, State> charStateMap;
   private boolean returnRootIfCharNotExist;
 

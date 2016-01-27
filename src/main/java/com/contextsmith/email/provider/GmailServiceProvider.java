@@ -4,6 +4,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -11,7 +12,6 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
@@ -96,6 +96,8 @@ public class GmailServiceProvider {
     // Load client secrets.
     ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
     InputStream in = classLoader.getResourceAsStream(CLIENT_SECRET_FILE);
+    if (in == null) throw new FileNotFoundException(
+        "Could not find: " + CLIENT_SECRET_FILE);
     GoogleClientSecrets clientSecrets =
         GoogleClientSecrets.load(JacksonFactory.getDefaultInstance(),
                                  new InputStreamReader(in));
@@ -126,21 +128,6 @@ public class GmailServiceProvider {
 
   public static String getGmailThreadId(MimeMessage message) {
     return MimeMessageUtil.getHeader(message, GMAIL_THREAD_ID);
-  }
-
-  private static void filterUselessMimeMessages(List<MimeMessage> mimeMessages) {
-    int numBeforeFilter = mimeMessages.size();
-    for (Iterator<MimeMessage> iter = mimeMessages.iterator(); iter.hasNext();) {
-      if (!MimeMessageUtil.isUsefulMessage(iter.next())) {
-        iter.remove();
-      }
-    }
-    int numFiltered = numBeforeFilter - mimeMessages.size();
-    int numAfterFilter = mimeMessages.size();
-    log.debug(String.format(
-        "Filtered %d%% (%d out of %d) invalid emails, %d left.",
-        Math.round(100.0 * numFiltered / numBeforeFilter),
-        numFiltered, numBeforeFilter, numAfterFilter));
   }
 
   private static List<Message> findMissingMessages(
@@ -316,8 +303,8 @@ public class GmailServiceProvider {
     return this.storedCredential;
   }
 
-  public List<MimeMessage> provide(String userId, String query, long maxMessages)
-      throws IOException {
+  public List<MimeMessage> provide(String userId, String query,
+                                   long maxMessages) throws IOException {
     List<Message> messages = searchForMessages(userId, query, maxMessages);
     if (messages == null) return null;
 
@@ -332,7 +319,6 @@ public class GmailServiceProvider {
       tempMessages = findMissingMessages(tempMessages, mimeMessages);
     } while (!tempMessages.isEmpty() && retriesLeft > 0);
 
-    filterUselessMimeMessages(mimeMessages);
     return mimeMessages;
   }
 
@@ -353,9 +339,9 @@ public class GmailServiceProvider {
 
     List<Message> messages = new ArrayList<Message>();
     ListMessagesResponse response = service.users().messages()
-        .list(userId)
-        .setMaxResults(maxMessages)
-        .setQ(query).execute();
+                                           .list(userId)
+                                           .setMaxResults(maxMessages)
+                                           .setQ(query).execute();
     if (response == null) return null;
 
     while (response.getMessages() != null) {
@@ -363,9 +349,13 @@ public class GmailServiceProvider {
       if (messages.size() >= maxMessages) break;
       if (response.getNextPageToken() == null) break;
       String pageToken = response.getNextPageToken();
-      response = service.users().messages()
-          .list(userId).setQ(query)
-          .setPageToken(pageToken).execute();
+      try {
+        response = service.users().messages()
+                          .list(userId).setQ(query)
+                          .setPageToken(pageToken).execute();
+      } catch (IOException e) {
+        log.warn(e);
+      }
     }
     return messages;
   }

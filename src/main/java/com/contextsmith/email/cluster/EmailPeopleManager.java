@@ -14,6 +14,9 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
 import com.contextsmith.api.service.NewsFeeder;
+import com.contextsmith.api.service.NewsFeederRequest;
+import com.contextsmith.email.provider.GmailQueryBuilder;
+import com.contextsmith.email.provider.EmailFetcher;
 import com.contextsmith.utils.MimeMessageUtil;
 import com.contextsmith.utils.MimeMessageUtil.AddressField;
 
@@ -27,10 +30,12 @@ public class EmailPeopleManager {
   };
 
   public static void main(String[] args) throws IOException, MessagingException {
-    List<MimeMessage> messages = NewsFeeder.fetchGmails(
-        NewsFeeder.DEFAULT_GMAIL_BEFORE_DATE,
-        NewsFeeder.DEFAULT_ACCESS_TOKEN,
-        NewsFeeder.DEFAULT_GMAIL_MAX_MESSAGES);
+    String query = new GmailQueryBuilder().addBeforeDate(
+        NewsFeeder.DEFAULT_GMAIL_BEFORE_DATE).build();
+    List<MimeMessage> messages = EmailFetcher.fetchGmails(
+        query,
+        EmailFetcher.DEFAULT_ACCESS_TOKEN,
+        NewsFeederRequest.DEFAULT_MAX_MESSAGES);
 
     EmailPeopleManager epm = new EmailPeopleManager();
     epm.loadMessages(messages);  // Index messages.
@@ -50,7 +55,7 @@ public class EmailPeopleManager {
 
   public void loadMessages(Collection<MimeMessage> messages) {
     for (MimeMessage message : messages) {
-      if (!MimeMessageUtil.isUsefulMessage(message)) continue;
+//      if (!MimeMessageUtil.isUsefulMessage(message)) continue;
 
       for (AddressField field : ADDRESS_FIELDS) {
         Set<InternetAddress> addresses =

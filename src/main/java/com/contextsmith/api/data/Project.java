@@ -19,8 +19,9 @@ public class Project implements Comparable<Project> {
   private String topExternalMemberDomain;
 
   private List<Conversation> conversations;
-  private Set<InternetAddress> externalMembers;
   private Set<InternetAddress> internalMembers;
+  private Set<InternetAddress> externalMembers;
+  private Set<InternetAddress> newExternalMembers;
 
   public Project(String id) {
     this.id = id;
@@ -31,18 +32,20 @@ public class Project implements Comparable<Project> {
     this.conversations = new ArrayList<>();
     this.externalMembers = new HashSet<>();
     this.internalMembers = new HashSet<>();
+    this.newExternalMembers = new HashSet<>();
   }
 
   public boolean addConversation(Conversation conversation) {
     return this.conversations.add(conversation);
   }
 
-  public void addExternalMembers(Set<InternetAddress> members) {
+  public void addExternalMembers(Set<InternetAddress> members,
+                                 boolean resolveProjectName) {
     this.externalMembers.addAll(members);
     this.topExternalMemberDomain =
         InternetAddressUtil.findMostFrequentDomain(members);
 
-    if (this.topExternalMemberDomain != null) {
+    if (resolveProjectName && this.topExternalMemberDomain != null) {
       this.topExternalMemberName =
           WhoisLookup.lookupRegistrantOrganization(this.topExternalMemberDomain);
     }
@@ -50,6 +53,10 @@ public class Project implements Comparable<Project> {
 
   public void addInternalMembers(Set<InternetAddress> members) {
     this.internalMembers.addAll(members);
+  }
+
+  public void addNewExternalMembers(Set<InternetAddress> members) {
+    this.newExternalMembers.addAll(members);
   }
 
   @Override
@@ -78,6 +85,10 @@ public class Project implements Comparable<Project> {
 
   public Date getLastSentDate() {
     return this.lastSentDate;
+  }
+
+  public Set<InternetAddress> getNewExternalMembers() {
+    return this.newExternalMembers;
   }
 
   public String getTopExternalMemberDomain() {

@@ -16,7 +16,7 @@ import org.mortbay.servlet.GzipFilter;
 public class ServerMain {
 
   static final Logger log = LogManager.getLogger(ServerMain.class);
-  public static final int DEFAULT_SERVER_PORT = 8888;
+  public static final int DEFAULT_SERVER_PORT = 8889;
 
   public static void main(String[] args) throws Exception {
     ServletContextHandler context = new ServletContextHandler(

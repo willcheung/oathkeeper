@@ -3,6 +3,7 @@ package com.contextsmith.email.cluster;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -20,21 +21,22 @@ import org.apache.logging.log4j.Logger;
 
 import com.contextsmith.utils.MimeMessageUtil;
 
-public class UserAddressPredictor {
+public class UserEmailAliasFinder {
 
-  private static final Logger log = LogManager.getLogger(UserAddressPredictor.class);
+  private static final Logger log = LogManager.getLogger(UserEmailAliasFinder.class);
 
   public static final int MAX_ADDRESSES_TO_GUESS_FROM = 100;
   public static final int NUM_RECIPIENTS_PER_EMAIL = 1;
   public static final double MIN_EMAIL_PREDICT_THRESHOLD = 5;
 
-  public static Map<InternetAddress, Double> predict(List<MimeMessage> inputs) {
-    return predict(inputs, MIN_EMAIL_PREDICT_THRESHOLD);
+  public static Map<InternetAddress, Double> find(Collection<MimeMessage> messages) {
+    return predict(messages, MIN_EMAIL_PREDICT_THRESHOLD);
   }
 
-  public static Map<InternetAddress, Double> predict(List<MimeMessage> inputs,
-                                                     double minThreshold) {
-    List<MimeMessage> messages = new ArrayList<>(inputs);
+  public static Map<InternetAddress, Double> predict(
+      Collection<MimeMessage> inMessages,
+      double minThreshold) {
+    List<MimeMessage> messages = new ArrayList<>(inMessages);
     Map<InternetAddress, Double> addressScoreMap = new LinkedHashMap<>();
     InternetAddress bestAddress = null;
     Integer maxCount = null;

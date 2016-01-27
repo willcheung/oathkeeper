@@ -6,7 +6,7 @@ public class FirstNameAnnotator extends AbstractAnnotator {
   public static final String EN_STOPWORD_PATH = "en-stopwords.txt";
 
   public static final int MIN_CHARS = 3;
-  public static final boolean TRY_IGNORE_CASE = true;
+  public static final boolean IGNORE_CASE = true;
 
   private static FirstNameAnnotator instance = null;
 
@@ -26,7 +26,7 @@ public class FirstNameAnnotator extends AbstractAnnotator {
   public FirstNameAnnotator() {
     super(MENTION_PATH);
     super.setMinChars(MIN_CHARS);
-    super.setIgnoreCase(TRY_IGNORE_CASE);
+    super.setIgnoreCase(IGNORE_CASE);
     super.loadStopwords(EN_STOPWORD_PATH);
   }
 }

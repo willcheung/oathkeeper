@@ -22,11 +22,11 @@ import com.google.common.io.CharSource;
 import com.google.common.io.CharStreams;
 
 public class FileUtil {
-  
+
   static final Logger log = LogManager.getLogger(FileUtil.class);
-  
+
   public static final String COMPRESSED_FILE_RE = ".+?\\.(gz|gzip|zip)";
-  
+
   public static CharSource findResourceAsCharSource(String filename)
       throws IOException {
     return inputStreamToCharSource(findResourceAsStream(filename));
@@ -62,11 +62,24 @@ public class FileUtil {
     if (stream == null) return null;
     return readStreamToString(stream);
   }
-  
+
   public static List<String> findResourceAsStringList(String filename) {
     InputStream stream = findResourceAsStream(filename);
     if (stream == null) return null;
     return readStreamToStringList(stream);
+  }
+
+  public static String getReadableFileSize(String filePath) {
+    long size = new File(filePath).length();
+    return humanReadableByteCount(size, true);
+  }
+
+  public static String humanReadableByteCount(long bytes, boolean si) {
+    int unit = si ? 1000 : 1024;
+    if (bytes < unit) return bytes + " B";
+    int exp = (int) (Math.log(bytes) / Math.log(unit));
+    String pre = (si ? "kMGTPE" : "KMGTPE").charAt(exp-1) + (si ? "" : "i");
+    return String.format("%.1f %sB", bytes / Math.pow(unit, exp), pre);
   }
 
   public static CharSource inputStreamToCharSource(
@@ -116,7 +129,7 @@ public class FileUtil {
     }
     return content;
   }
-  
+
   public static String readStreamToString(InputStream stream) {
     try {
       return CharStreams.toString(new InputStreamReader(
@@ -125,7 +138,7 @@ public class FileUtil {
       return null;
     }
   }
-  
+
   public static List<String> readStreamToStringList(InputStream stream) {
     try {
       return CharStreams.readLines(new InputStreamReader(

@@ -5,6 +5,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.Iterator;
 import java.util.Set;
 
+import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 
 import org.apache.commons.lang3.StringUtils;
@@ -55,7 +56,11 @@ public class InternetAddressUtil {
   }
 
   public static String getAddressDomain(InternetAddress address) {
-    return address.getAddress().replaceFirst("^.+?@", "");
+    return getAddressDomain(address.getAddress());
+  }
+
+  public static String getAddressDomain(String address) {
+    return address.replaceFirst("^.+?@", "");
   }
 
   public static boolean hasDomain(InternetAddress address, String domain) {
@@ -71,6 +76,14 @@ public class InternetAddressUtil {
   public static boolean isValidAddress(InternetAddress address) {
     checkNotNull(address);
     return EmailValidator.getInstance().isValid(address.getAddress());
+  }
+
+  public static InternetAddress newIAddress(String address) {
+    try {
+      return new InternetAddress(address);
+    } catch (AddressException e) {
+      return null;
+    }
   }
 
   public static boolean shouldIgnore(InternetAddress address,

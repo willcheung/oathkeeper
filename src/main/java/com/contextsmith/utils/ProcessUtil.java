@@ -2,9 +2,14 @@ package com.contextsmith.utils;
 
 import java.lang.ref.WeakReference;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
+import com.google.gson.Gson;
 
 public class ProcessUtil {
+
+  public static ObjectMapper jacksonInstance = null;
+  public static Gson gson = null;
 
   public static final String CONFIG_PROP_FILE = "config.properties";
 //  private static final Properties CONFIG_PROP =
@@ -37,6 +42,11 @@ public class ProcessUtil {
     while (ref.get() != null) System.gc();
   }
 
+  public static Gson getGsonInstance() {
+    if (gson == null) gson = new Gson();
+    return gson;
+  }
+
   /*public static Properties getConfigProperties() {
     return CONFIG_PROP;
   }*/
@@ -47,6 +57,11 @@ public class ProcessUtil {
     long heapMaxSize = Runtime.getRuntime().maxMemory() / 1024 / 1024;
     return String.format("Used %d/%d/%d MB memory.",
                          heapSize - freeSize, heapSize, heapMaxSize);
+  }
+
+  public static ObjectMapper getJacksonInstance() {
+    if (jacksonInstance == null) jacksonInstance = new ObjectMapper();
+    return jacksonInstance;
   }
 
   public static double getPercentMemoryUsed() {

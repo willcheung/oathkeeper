@@ -1,11 +1,7 @@
 package com.contextsmith.api.data;
 
-import java.io.IOException;
 import java.util.Date;
 import java.util.TreeSet;
-
-import javax.mail.MessagingException;
-import javax.mail.internet.MimeMessage;
 
 public class Conversation implements Comparable<Conversation> {
 
@@ -32,12 +28,14 @@ public class Conversation implements Comparable<Conversation> {
     return success;
   }
 
-  public boolean addMimeMessage(MimeMessage mimeMessage)
+  /*public boolean addMimeMessage(MimeMessage mimeMessage, boolean includePreview,
+                                EmailNameResolver enResolver)
       throws IOException, MessagingException {
     // Convert from MimeMessage to ContextMessage.
-    ContextMessage contextMessage = new ContextMessage(mimeMessage);
+    ContextMessage contextMessage = new ContextMessage();
+    contextMessage.loadFrom(mimeMessage, includePreview, enResolver);
     return addContextMessage(contextMessage);
-  }
+  }*/
 
   @Override
   public int compareTo(Conversation conversation) {

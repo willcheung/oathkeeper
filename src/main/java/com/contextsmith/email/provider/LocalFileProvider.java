@@ -14,8 +14,6 @@ import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.io.FileUtils;
 
-import com.contextsmith.utils.MimeMessageUtil;
-
 public class LocalFileProvider {
 
   public static final String EMAIL_ROOT_PATH =
@@ -44,9 +42,7 @@ public class LocalFileProvider {
     for (File file : files) {
       try {
         MimeMessage message = new MimeMessage(session, new FileInputStream(file));
-        if (MimeMessageUtil.isUsefulMessage(message)) {
-          mimeMessages.add(message);
-        }
+        mimeMessages.add(message);
       } catch (MessagingException e) {
         e.printStackTrace();
         continue;

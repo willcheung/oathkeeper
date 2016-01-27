@@ -9,13 +9,53 @@ import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.contextsmith.email.cluster.EmailNameResolver;
 import com.contextsmith.email.parser.EnglishEmailBodyParser;
+import com.contextsmith.email.provider.EmailFetcher;
 import com.contextsmith.email.provider.GmailServiceProvider;
 import com.contextsmith.utils.MimeMessageUtil;
+import com.google.common.collect.Sets;
 
 public class ContextMessage implements Comparable<ContextMessage> {
 
-  public static final int MAX_PREVIEW_CHARS = 280;  // Double tweets.
+  /*public static class Builder {
+    private MimeMessage message;
+    private EmailNameResolver enResolver;
+    private boolean includePreview;
+
+    public ContextMessage build() throws IOException, MessagingException {
+      ContextMessage m = new ContextMessage();
+      return m.loadFrom(this.message, this.includePreview, this.enResolver);
+    }
+
+    public Builder setEnResolver(EmailNameResolver enResolver) {
+      this.enResolver = enResolver;
+      return this;
+    }
+
+    public Builder setIncludePreview(boolean includePreview) {
+      this.includePreview = includePreview;
+      return this;
+    }
+
+    public Builder setMessage(MimeMessage message) {
+      this.message = message;
+      return this;
+    }
+  }*/
+
+  static final Logger log = LogManager.getLogger(ContextMessage.class);
+
+  public static final int MAX_PREVIEW_CHARS = 8000;  // 280;  // Double tweets.
+
+  public static ContextMessage build(MimeMessage message, boolean includePreview,
+                                      EmailNameResolver enResolver)
+      throws IOException, MessagingException {
+    return (new ContextMessage()).loadFrom(message, includePreview, enResolver);
+  }
 
   private static String truncateAtWordBoundary(String text, int maxChars) {
     if (text.length() < maxChars) return text;
@@ -25,22 +65,30 @@ public class ContextMessage implements Comparable<ContextMessage> {
     return text.substring(0, firstBeforeOffset).trim() + "...";
   }
 
+  // From email header.
   private Set<InternetAddress> from;
   private Set<InternetAddress> to;
   private Set<InternetAddress> cc;
+  private String[] sourceInboxes;
   private String mimeMessageId;  // Email message id.
   private String gmailMessageId;  // From gmail.
-  private String subject;
   private Date sentDate;
+  private String subject;
 
-  //  private String htmlContent;
-  //  private String plainTextContent;
+  // From email content.
   private String previewContent;
 
-  public ContextMessage(MimeMessage message)
-        throws IOException, MessagingException {
-      convertMimeToContextMessage(message);
-    }
+  public ContextMessage() {
+    this.from = null;
+    this.to = null;
+    this.cc = null;
+    this.sourceInboxes = null;
+    this.mimeMessageId = null;
+    this.gmailMessageId = null;
+    this.sentDate = null;
+    this.subject = null;
+    this.previewContent = null;
+  }
 
   @Override
   public int compareTo(ContextMessage message) {
@@ -69,17 +117,9 @@ public class ContextMessage implements Comparable<ContextMessage> {
     return this.from;
   }
 
-//  public String getHtmlContent() {
-//    return this.htmlContent;
-//  }
-
   public String getGmailMessageId() {
     return this.gmailMessageId;
   }
-
-//  public String getPlainTextContent() {
-//    return this.plainTextContent;
-//  }
 
   public String getMimeMessageId() {
     return this.mimeMessageId;
@@ -91,6 +131,10 @@ public class ContextMessage implements Comparable<ContextMessage> {
 
   public Date getSentDate() {
     return this.sentDate;
+  }
+
+  public String[] getSourceInboxes() {
+    return this.sourceInboxes;
   }
 
   public String getSubject() {
@@ -113,29 +157,40 @@ public class ContextMessage implements Comparable<ContextMessage> {
     this.mimeMessageId = messageId;
   }
 
-  private void convertMimeToContextMessage(MimeMessage message)
+  protected ContextMessage loadFrom(MimeMessage message, boolean includePreview,
+                                    EmailNameResolver enResolver)
       throws IOException, MessagingException {
+
     this.mimeMessageId = message.getMessageID();  // For equals().
     this.sentDate = message.getSentDate();  // For sorting.
     if (this.mimeMessageId == null || this.sentDate == null) {
       throw new MessagingException();
     }
 
-    // this.htmlContent = MimeMessageUtil.extractHtmlText(message);
-    String plainTextContent = MimeMessageUtil.extractPlainText(message);
-    if (plainTextContent == null) throw new MessagingException();
-
-    this.previewContent = EnglishEmailBodyParser
-        .getInstance().parse(plainTextContent).getBody()
-        .replaceAll(EnglishEmailBodyParser.END_LINE_RE, " ")
-        .replaceAll("\\s+", " ").trim();
-    this.previewContent = truncateAtWordBoundary(this.previewContent,
-                                                 MAX_PREVIEW_CHARS);
-
     this.subject = message.getSubject();
     this.from = MimeMessageUtil.getValidSenders(message);
     this.to = MimeMessageUtil.getValidRecipientTo(message);
     this.cc = MimeMessageUtil.getValidRecipientCC(message);
+    this.sourceInboxes = EmailFetcher.getSourceInboxes(message);
     this.gmailMessageId = GmailServiceProvider.getGmailMessageId(message);
+
+    // Update personal names.
+    enResolver.resolve(this.from);
+    enResolver.resolve(this.to);
+    enResolver.resolve(this.cc);
+
+    if (includePreview) {
+      String plainTextContent = MimeMessageUtil.extractPlainText(message);
+      if (plainTextContent == null) throw new MessagingException();
+
+      this.previewContent = EnglishEmailBodyParser
+          .getInstance().parse(plainTextContent, this.from, Sets.union(this.to, this.cc))
+          .getBody().replaceAll("[ ]+", " ").trim();
+//          .replaceAll(EnglishEmailBodyParser.END_LINE_RE, " ")
+//          .replaceAll("\\s+", " ").trim();
+      this.previewContent = truncateAtWordBoundary(this.previewContent,
+                                                   MAX_PREVIEW_CHARS);
+    }
+    return this;
   }
 }

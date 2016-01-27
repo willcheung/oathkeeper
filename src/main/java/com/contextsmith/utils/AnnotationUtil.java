@@ -24,8 +24,6 @@ public class AnnotationUtil {
 
   static final Logger log = LogManager.getLogger(AnnotationUtil.class.getName());
 
-  public static final String GAP_ANNOTATION_TYPE = "gap";
-
   /**
    * Concatenate annotations separated by "sep",
    * duplicated annotations will be removed.

@@ -1,5 +1,6 @@
 package com.contextsmith.nlp.ahocorasick;
 
+import java.io.Serializable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -28,7 +29,8 @@ import java.util.Queue;
    </pre></code>
    </p>
  */
-public class AhoCorasick {
+public class AhoCorasick implements Serializable {
+  private static final long serialVersionUID = -5604494320998239765L;
   private final RootState root;
   private boolean isPrepared;
 

@@ -1,5 +1,7 @@
 package com.contextsmith.nlp.annotation;
 
+import java.io.IOException;
+
 public class LastNameAnnotator extends AbstractAnnotator {
 
   public static final String MENTION_PATH = "last-names.dict";
@@ -19,7 +21,7 @@ public class LastNameAnnotator extends AbstractAnnotator {
     return instance;
   }
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws IOException, ClassNotFoundException {
     interactiveRun(getInstance());
   }
 

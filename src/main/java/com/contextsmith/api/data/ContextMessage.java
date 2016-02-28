@@ -13,9 +13,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.contextsmith.email.cluster.EmailNameResolver;
-import com.contextsmith.email.parser.EnglishEmailBodyParser;
-import com.contextsmith.email.provider.EmailFetcher;
-import com.contextsmith.email.provider.GmailServiceProvider;
+import com.contextsmith.nlp.email.parser.EnglishEmailBodyParser;
 import com.contextsmith.utils.MimeMessageUtil;
 import com.google.common.collect.Sets;
 
@@ -49,10 +47,10 @@ public class ContextMessage implements Comparable<ContextMessage> {
 
   static final Logger log = LogManager.getLogger(ContextMessage.class);
 
-  public static final int MAX_PREVIEW_CHARS = 8000;  // 280;  // Double tweets.
+  public static final int MAX_CONTENT_CHARS = 8000;  // 280;  // Double tweets.
 
   public static ContextMessage build(MimeMessage message, boolean includePreview,
-                                      EmailNameResolver enResolver)
+                                     EmailNameResolver enResolver)
       throws IOException, MessagingException {
     return (new ContextMessage()).loadFrom(message, includePreview, enResolver);
   }
@@ -70,24 +68,24 @@ public class ContextMessage implements Comparable<ContextMessage> {
   private Set<InternetAddress> to;
   private Set<InternetAddress> cc;
   private String[] sourceInboxes;
-  private String mimeMessageId;  // Email message id.
-  private String gmailMessageId;  // From gmail.
+  private String messageId;
+//  private String gmailMessageId;  // From gmail.
   private Date sentDate;
   private String subject;
 
   // From email content.
-  private String previewContent;
+  private String content;
 
   public ContextMessage() {
     this.from = null;
     this.to = null;
     this.cc = null;
     this.sourceInboxes = null;
-    this.mimeMessageId = null;
-    this.gmailMessageId = null;
+    this.messageId = null;
+//    this.gmailMessageId = null;
     this.sentDate = null;
     this.subject = null;
-    this.previewContent = null;
+    this.content = null;
   }
 
   @Override
@@ -101,9 +99,9 @@ public class ContextMessage implements Comparable<ContextMessage> {
     if (obj == null) return false;
     if (getClass() != obj.getClass()) return false;
     ContextMessage other = (ContextMessage) obj;
-    if (this.mimeMessageId == null) {
-      if (other.mimeMessageId != null) return false;
-    } else if (!this.mimeMessageId.equals(other.mimeMessageId)) {
+    if (this.messageId == null) {
+      if (other.messageId != null) return false;
+    } else if (!this.messageId.equals(other.messageId)) {
       return false;
     }
     return true;
@@ -113,20 +111,20 @@ public class ContextMessage implements Comparable<ContextMessage> {
     return this.cc;
   }
 
+  public String getContent() {
+    return this.content;
+  }
+
+  /*public String getGmailMessageId() {
+    return this.gmailMessageId;
+  }*/
+
   public Set<InternetAddress> getFrom() {
     return this.from;
   }
 
-  public String getGmailMessageId() {
-    return this.gmailMessageId;
-  }
-
-  public String getMimeMessageId() {
-    return this.mimeMessageId;
-  }
-
-  public String getPreviewContent() {
-    return this.previewContent;
+  public String getMessageId() {
+    return this.messageId;
   }
 
   public Date getSentDate() {
@@ -149,21 +147,21 @@ public class ContextMessage implements Comparable<ContextMessage> {
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((this.mimeMessageId == null) ? 0 : this.mimeMessageId.hashCode());
+    result = prime * result + ((this.messageId == null) ? 0 : this.messageId.hashCode());
     return result;
   }
 
-  public void setMimeMessageId(String messageId) {
-    this.mimeMessageId = messageId;
+  public void setMessageId(String messageId) {
+    this.messageId = messageId;
   }
 
   protected ContextMessage loadFrom(MimeMessage message, boolean includePreview,
                                     EmailNameResolver enResolver)
       throws IOException, MessagingException {
 
-    this.mimeMessageId = message.getMessageID();  // For equals().
+    this.messageId = message.getMessageID();  // For equals().
     this.sentDate = message.getSentDate();  // For sorting.
-    if (this.mimeMessageId == null || this.sentDate == null) {
+    if (this.messageId == null || this.sentDate == null) {
       throw new MessagingException();
     }
 
@@ -171,8 +169,8 @@ public class ContextMessage implements Comparable<ContextMessage> {
     this.from = MimeMessageUtil.getValidSenders(message);
     this.to = MimeMessageUtil.getValidRecipientTo(message);
     this.cc = MimeMessageUtil.getValidRecipientCC(message);
-    this.sourceInboxes = EmailFetcher.getSourceInboxes(message);
-    this.gmailMessageId = GmailServiceProvider.getGmailMessageId(message);
+    this.sourceInboxes = MimeMessageUtil.getSourceInboxes(message);
+//    this.gmailMessageId = MimeMessageUtil.getGmailMessageId(message);
 
     // Update personal names.
     enResolver.resolve(this.from);
@@ -183,13 +181,13 @@ public class ContextMessage implements Comparable<ContextMessage> {
       String plainTextContent = MimeMessageUtil.extractPlainText(message);
       if (plainTextContent == null) throw new MessagingException();
 
-      this.previewContent = EnglishEmailBodyParser
-          .getInstance().parse(plainTextContent, this.from, Sets.union(this.to, this.cc))
-          .getBody().replaceAll("[ ]+", " ").trim();
+      EnglishEmailBodyParser parser = new EnglishEmailBodyParser();
+      this.content =
+          parser.parse(plainTextContent, this.from, Sets.union(this.to, this.cc))
+                .getBody().replaceAll("[ ]+", " ").trim();
 //          .replaceAll(EnglishEmailBodyParser.END_LINE_RE, " ")
 //          .replaceAll("\\s+", " ").trim();
-      this.previewContent = truncateAtWordBoundary(this.previewContent,
-                                                   MAX_PREVIEW_CHARS);
+      this.content = truncateAtWordBoundary(this.content, MAX_CONTENT_CHARS);
     }
     return this;
   }

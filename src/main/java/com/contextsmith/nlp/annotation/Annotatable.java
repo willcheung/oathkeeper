@@ -6,6 +6,7 @@ import java.util.Set;
 import com.contextsmith.nlp.ahocorasick.AhoCorasick;
 
 public interface Annotatable {
+  public List<Annotation> annotate(Annotation annotation);
   public List<Annotation> annotate(String text);
   public AhoCorasick getAhoCorasick();
   public String getAnnotatorType();

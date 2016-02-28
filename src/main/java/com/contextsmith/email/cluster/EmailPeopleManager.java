@@ -1,6 +1,5 @@
 package com.contextsmith.email.cluster;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -9,14 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
-import com.contextsmith.api.service.NewsFeeder;
-import com.contextsmith.api.service.NewsFeederRequest;
-import com.contextsmith.email.provider.GmailQueryBuilder;
-import com.contextsmith.email.provider.EmailFetcher;
 import com.contextsmith.utils.MimeMessageUtil;
 import com.contextsmith.utils.MimeMessageUtil.AddressField;
 
@@ -29,7 +23,7 @@ public class EmailPeopleManager {
       AddressField.BCC
   };
 
-  public static void main(String[] args) throws IOException, MessagingException {
+  /*public static void main(String[] args) throws IOException, MessagingException {
     String query = new GmailQueryBuilder().addBeforeDate(
         NewsFeeder.DEFAULT_GMAIL_BEFORE_DATE).build();
     List<MimeMessage> messages = EmailFetcher.fetchGmails(
@@ -45,7 +39,7 @@ public class EmailPeopleManager {
     for (MimeMessage message : msgs) {
       message.writeTo(System.out);
     }
-  }
+  }*/
 
   private Map<AddressField, Map<InternetAddress, List<MimeMessage>>> fieldAddrMsgMap;
 

@@ -24,11 +24,21 @@ public class GmailQueryBuilder {
     return this;
   }
 
+  public GmailQueryBuilder addAfterDate(Long startTimeInSec) {
+    if (startTimeInSec == null) return this;
+    return addAfterDate(new Date(startTimeInSec * 1000));
+  }
+
   public GmailQueryBuilder addBeforeDate(Date beforeThisDate) {
     if (beforeThisDate == null) return this;
     SimpleDateFormat df = new SimpleDateFormat("yyyy/MM/dd");
     addQuery("before:" + df.format(beforeThisDate));
     return this;
+  }
+
+  public GmailQueryBuilder addBeforeDate(Long endTimeInSec) {
+    if (endTimeInSec == null) return this;
+    return addBeforeDate(new Date(endTimeInSec * 1000));
   }
 
   public GmailQueryBuilder addClusters(List<Set<InternetAddress>> clusters) {
@@ -43,7 +53,7 @@ public class GmailQueryBuilder {
                        address.getAddress(), address.getAddress()));
       }
     }
-    addQuery(String.format("(%s)", builder.toString()));
+    addQuery(String.format("(%s) -label:draft", builder.toString()));
     return this;
   }
 

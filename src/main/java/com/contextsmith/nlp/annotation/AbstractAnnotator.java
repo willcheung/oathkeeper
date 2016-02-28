@@ -82,6 +82,7 @@ abstract class AbstractAnnotator implements Annotatable {
   private boolean outputLongestSpan;
   private int minChars;
   private int priority;
+
   public AbstractAnnotator(String annotatorType) {
     checkArgument(annotatorType != null, "Annotator ID cannot be null");
 
@@ -100,18 +101,15 @@ abstract class AbstractAnnotator implements Annotatable {
   }
 
   @Override
+  public List<Annotation> annotate(Annotation annotation) {
+    beforeAnnotateCore(annotation.getText());
+    List<Annotation> annotations = annotateCore(annotation);
+    return afterAnnotateCore(annotations);
+  }
+
+  @Override
   public List<Annotation> annotate(String text) {
-    log.trace(String.format("Annotating %s: %s", this.getAnnotatorType(), text));
-
-    List<Annotation> annotations = runAhoCorasick(text);
-    if (annotations.isEmpty()) return annotations;
-    if (log.isTraceEnabled()) log.trace(AnnotationUtil.toDebugString(annotations));
-
-    if (this.outputLongestSpan) {
-      annotations = AnnotationUtil.getLongestSpans(annotations);
-      if (log.isTraceEnabled()) log.trace(AnnotationUtil.toDebugString(annotations));
-    }
-    return annotations;
+    return annotate(new Annotation(text));
   }
 
   public void compile() {
@@ -221,38 +219,6 @@ abstract class AbstractAnnotator implements Annotatable {
     this.ahoCorasick.add(key.toCharArray(), value);
   }
 
-  public List<Annotation> runAhoCorasick(String text) {
-    Iterator<SearchResult> iter = this.ahoCorasick.search(
-        this.isIgnoreCase ? text.toLowerCase().toCharArray() : text.toCharArray());
-    List<Annotation> annotations = new ArrayList<>();
-
-    while (iter.hasNext()) {
-      SearchResult result = iter.next();
-      int endOffset = result.getLastIndex();
-      if (this.isSuffixMatch && endOffset != text.length()) continue;
-
-      for (int index : result.getOutputs()) {
-        Mention mention = this.mentionList.get(index);
-        int beginOffset = result.getLastIndex() - mention.getCharLength();
-        if (this.isPrefixMatch && beginOffset != 0) continue;
-
-        // Check for character boundaries.
-        if (!hasValidBoundingChars(text, beginOffset, endOffset)) {
-          continue;
-        }
-
-        // Convert mention to annotation, and store it somewhere.
-        Annotation annotation = new Annotation(
-            text.substring(beginOffset, endOffset), beginOffset, endOffset);
-        annotation.setValues(mention.getValues());
-        annotation.setPriority(mention.getPriority());
-        annotation.setType(this.getAnnotatorType());
-        annotations.add(annotation);
-      }
-    }
-    return annotations;
-  }
-
   public void setAhoCorasick(AhoCorasick ahoCorasick) {
     this.ahoCorasick = ahoCorasick;
   }
@@ -284,5 +250,53 @@ abstract class AbstractAnnotator implements Annotatable {
 
   public void setTitleCase(boolean isTitleCase) {
     this.isTitleCase = isTitleCase;
+  }
+
+  protected List<Annotation> afterAnnotateCore(List<Annotation> annotations) {
+    if (annotations.isEmpty()) return annotations;
+    if (log.isTraceEnabled()) log.trace(AnnotationUtil.toDebugString(annotations));
+
+    if (this.outputLongestSpan) {
+      annotations = AnnotationUtil.getLongestSpans(annotations);
+      if (log.isTraceEnabled()) log.trace(AnnotationUtil.toDebugString(annotations));
+    }
+    return annotations;
+  }
+
+//  protected List<Annotation> annotateCore(String text, int parentBeginOffset) {
+  protected List<Annotation> annotateCore(Annotation parent) {
+    String text = parent.getText();
+    Iterator<SearchResult> iter = this.ahoCorasick.search(
+        this.isIgnoreCase ? text.toLowerCase().toCharArray() : text.toCharArray());
+    List<Annotation> annotations = new ArrayList<>();
+
+    while (iter.hasNext()) {
+      SearchResult result = iter.next();
+      int endOffset = result.getLastIndex();
+      if (this.isSuffixMatch && endOffset != text.length()) continue;
+
+      for (int index : result.getOutputs()) {
+        Mention mention = this.mentionList.get(index);
+        int beginOffset = result.getLastIndex() - mention.getCharLength();
+        if (this.isPrefixMatch && beginOffset != 0) continue;
+
+        // Check for character boundaries.
+        if (!hasValidBoundingChars(text, beginOffset, endOffset)) {
+          continue;
+        }
+
+        // Convert mention to annotation, and store it somewhere.
+        Annotation annotation = parent.subAnnotation(beginOffset, endOffset);
+        annotation.setValues(mention.getValues());
+        annotation.setPriority(mention.getPriority());
+        annotation.setType(this.getAnnotatorType());
+        annotations.add(annotation);
+      }
+    }
+    return annotations;
+  }
+
+  protected void beforeAnnotateCore(String text) {
+    log.trace(String.format("Annotating %s: %s", this.getAnnotatorType(), text));
   }
 }

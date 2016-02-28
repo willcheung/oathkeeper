@@ -1,14 +1,16 @@
 package com.contextsmith.email.provider;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
-import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 
 import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -29,33 +31,31 @@ public class EmailFilterer {
   public static final String NO_REPLY_ADDR_RE = "(?i).*?reply.*?@.+";
   public static final String GIBBERISH_ADDR_RE = "(?i).*?([a-z]+[0-9]+){3,}.*?@.+";
 
-  // MimeMessage header fields.
-  public static final String LIST_UNSUBSCRIBE_HEADER = "List-Unsubscribe";
-
   // Mailing-List indicator in email body.
   public static final String BODY_SUBSCRIBE_WORD = "subscribe";
 
   private boolean removeMailListMessages;
   private boolean removePrivateMessages;
-//  private Set<InternetAddress> externalMembers;
 
   public EmailFilterer() {
     this.removeMailListMessages = DEFAULT_REMOVE_MAILLIST_MSGS;
     this.removePrivateMessages = DEFAULT_REMOVE_PRIVATE_MSGS;
-//    this.externalMembers = new HashSet<>();
   }
 
-  public void filterUselessMessages(Collection<MimeMessage> mimeMessages) {
-    int numBeforeFilter = mimeMessages.size();
-    for (Iterator<MimeMessage> iter = mimeMessages.iterator(); iter.hasNext();) {
-      if (!isUseful(iter.next())) iter.remove();
+  public Collection<MimeMessage> filter(
+      Collection<MimeMessage> messages) {
+    List<MimeMessage> filtered = new ArrayList<>();
+    for (MimeMessage message : messages) {
+      if (isUseful(message)) filtered.add(message);
     }
-    int numFiltered = numBeforeFilter - mimeMessages.size();
-    int numAfterFilter = mimeMessages.size();
+    int numBeforeFilter = messages.size();
+    int numAfterFilter = filtered.size();
+    int numFiltered = numBeforeFilter - numAfterFilter;
     log.debug(String.format(
         "Filtered %d%% (%d out of %d) invalid emails, %d left.",
         Math.round(100.0 * numFiltered / numBeforeFilter),
         numFiltered, numBeforeFilter, numAfterFilter));
+    return filtered;
   }
 
   public boolean isRemoveMailListMessages() {
@@ -125,11 +125,10 @@ public class EmailFilterer {
         return false;
       }
 
-      String[] unsubscribeList = message.getHeader(LIST_UNSUBSCRIBE_HEADER);
-      if (unsubscribeList != null && unsubscribeList.length > 0) {
+      if (MimeMessageUtil.hasMailingListInRecipients(message)) {
         if (this.removeMailListMessages) {
           log.trace("Message filtered: Contains header '{}'",
-                    LIST_UNSUBSCRIBE_HEADER);
+                    MimeMessageUtil.LIST_UNSUBSCRIBE_HEADER);
           return false;
         }
       } else if (recipients.size() == 1) {
@@ -143,35 +142,12 @@ public class EmailFilterer {
         }
       }
 
-      /*String[] unsubscribeList = message.getHeader(LIST_UNSUBSCRIBE_HEADER);
-      if (unsubscribeList != null && unsubscribeList.length > 0) {
-        // Message was sent through a mailing-list.
-        InternetAddress sender = senders.iterator().next();
-        if (this.externalMembers == null) {
-          // If no external members given, then filter out this message.
-          log.trace("Message filtered: Contains header '{}'",
-                    LIST_UNSUBSCRIBE_HEADER);
-          return false;
-        } else if (!this.externalMembers.contains(sender)) {
-          // If there is external members given but sender is not one of them,
-          // then also filter out this message.
-          log.trace("Message ({}) filtered: Contains header '{}' and " +
-                    "sender {} is not an external member.",
-                    messageId, LIST_UNSUBSCRIBE_HEADER, sender);
-          return false;
-        }
-      } else if (recipients.size() == 1) {
-        // A mesage is defined as private if
-        // 1) only one recipient, and
-        // 2) message is not sent through mailing-list.
-        log.trace("Message filtered: Message is private " +
-                  "(sent to user directly and has only one recipient)");
-      }*/
-
+      // TODO(rcwang): Cache this.
       ListMultimap<String, String> multimap = ArrayListMultimap.create();
       MimeMessageUtil.collectPartsRecursively(message, multimap);
+
       // Check if this message is HTML and contains the string 'subscribe'.
-      for (String html : multimap.get(MimeMessageUtil.TEXT_HTML_TYPE)) {
+      for (String html : multimap.get(MediaType.TEXT_HTML)) {
         if (html != null && MimeMessageUtil.isHtml(html) &&
             StringUtils.containsIgnoreCase(html, BODY_SUBSCRIBE_WORD)) {
           log.trace("Message filtered: Message is HTML and contains '{}'",
@@ -195,22 +171,14 @@ public class EmailFilterer {
     return true;
   }
 
-  /*public MessageFilterer addExternalMembers(List<Set<InternetAddress>> clusters) {
-    if (clusters == null) return this;
-    for (Set<InternetAddress> cluster : clusters) {
-      for (InternetAddress address : cluster) {
-        if (StringUtils.isBlank(address.getAddress())) continue;
-        this.externalMembers.add(address);
-      }
-    }
-    return this;
-  }*/
-
-  public void setRemoveMailListMessages(boolean removeMessagesViaMailList) {
+  public EmailFilterer setRemoveMailListMessages(
+      boolean removeMessagesViaMailList) {
     this.removeMailListMessages = removeMessagesViaMailList;
+    return this;
   }
 
-  public void setRemovePrivateMessages(boolean removePrivateMessages) {
+  public EmailFilterer setRemovePrivateMessages(boolean removePrivateMessages) {
     this.removePrivateMessages = removePrivateMessages;
+    return this;
   }
 }

@@ -1,4 +1,4 @@
-package com.contextsmith.email.parser;
+package com.contextsmith.nlp.email.parser;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 

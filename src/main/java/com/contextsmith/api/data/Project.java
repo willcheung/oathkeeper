@@ -14,7 +14,7 @@ import com.contextsmith.utils.InternetAddressUtil;
 public class Project implements Comparable<Project> {
 
   private Date lastSentDate;
-  private String id;
+  private String projectId;
   private String topExternalMemberName;
   private String topExternalMemberDomain;
 
@@ -23,8 +23,9 @@ public class Project implements Comparable<Project> {
   private Set<InternetAddress> externalMembers;
   private Set<InternetAddress> newExternalMembers;
 
-  public Project(String id) {
-    this.id = id;
+  public Project() {
+//  public Project(String projectId) {
+//    this.projectId = projectId;
     this.lastSentDate = null;
     this.topExternalMemberName = null;
     this.topExternalMemberDomain = null;
@@ -75,10 +76,6 @@ public class Project implements Comparable<Project> {
     return this.externalMembers;
   }
 
-  public String getId() {
-    return this.id;
-  }
-
   public Set<InternetAddress> getInternalMembers() {
     return this.internalMembers;
   }
@@ -89,6 +86,10 @@ public class Project implements Comparable<Project> {
 
   public Set<InternetAddress> getNewExternalMembers() {
     return this.newExternalMembers;
+  }
+
+  public String getProjectId() {
+    return this.projectId;
   }
 
   public String getTopExternalMemberDomain() {

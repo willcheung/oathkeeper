@@ -18,9 +18,36 @@ import com.contextsmith.utils.MimeMessageUtil;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
+import jersey.repackaged.com.google.common.collect.Sets;
+
 public class EmailNameResolver {
 
   static final Logger log = LogManager.getLogger(EmailNameResolver.class);
+
+  public static String normalizePersonalName(String name) {
+    // Remove parenthesized substrings.
+    name = name.replaceAll("\\([^()]+\\)", "").trim();
+    // Remove double and single surrounding quotes.
+    name = name.replaceAll("^[\"']+|[\"']+$", "").trim();
+    name = name.replaceAll("\\s+", " ").trim();
+    name = flip(name, ',');  // Flip if "<last name>, <first name>"
+    return name;
+  }
+
+  /**
+   * Flips the front and back parts of a name with one another.
+   * Front and back are determined by a specified character somewhere in the
+   * middle of the string.
+   *
+   * @param flipAroundChar the character(s) demarcating the two halves you want to flip.
+   */
+  private static String flip(String name, char flipAroundChar) {
+    String[] parts = StringUtils.split(name, flipAroundChar);
+    if (parts.length == 2) {
+      return parts[1].trim() + " " + parts[0].trim();
+    }
+    return name;
+  }
 
   private Map<String, NameDist> emailNameDistMap;
 
@@ -36,8 +63,9 @@ public class EmailNameResolver {
 
   public void loadMessages(Iterable<MimeMessage> messages) {
     for (MimeMessage message : messages) {
-      Set<InternetAddress> recipients =
-          MimeMessageUtil.getValidRecipients(message);
+      Set<InternetAddress> recipients = Sets.union(
+          MimeMessageUtil.getValidRecipients(message),
+          MimeMessageUtil.getValidSenders(message));
       for (InternetAddress address : recipients) {
         this.putAddress(address);
       }
@@ -47,22 +75,15 @@ public class EmailNameResolver {
   public void putAddress(InternetAddress address) {
     String email = address.getAddress();
     if (StringUtils.isBlank(email)) return;
-    String personal = address.getPersonal();
+    String personal = address.getPersonal();  // Personal name.
     if (StringUtils.isBlank(personal)) return;
     if (personal.contains("@")) return;  // Name cannot be email address.
-
-    // Remove parenthesized substrings.
-    personal = personal.replaceAll("\\([^()]+\\)", "").trim();
-    // Remove double and single surrounding quotes.
-    personal = personal.replaceAll("^[\"']+|[\"']+$", "").trim();
-    personal = personal.replaceAll("\\s+", " ");
-    personal = flip(personal, ',');  // Flip if "<last name>, <first name>"
 
     NameDist nameDist = this.emailNameDistMap.get(email);
     if (nameDist == null) {
       this.emailNameDistMap.put(email, nameDist = new NameDist());
     }
-    nameDist.add(personal);
+    nameDist.add(normalizePersonalName(personal));
   }
 
   public void resolve(Collection<InternetAddress> addresses) {
@@ -82,21 +103,6 @@ public class EmailNameResolver {
       log.error(e);
       e.printStackTrace();
     }
-  }
-
-  /**
-   * Flips the front and back parts of a name with one another.
-   * Front and back are determined by a specified character somewhere in the
-   * middle of the string.
-   *
-   * @param flipAroundChar the character(s) demarcating the two halves you want to flip.
-   */
-  private String flip(String name, char flipAroundChar) {
-    String[] parts = StringUtils.split(name, flipAroundChar);
-    if (parts.length == 2) {
-      return parts[1].trim() + " " + parts[0].trim();
-    }
-    return name;
   }
 }
 

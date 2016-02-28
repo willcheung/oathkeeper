@@ -1,4 +1,4 @@
-package com.contextsmith.email.parser;
+package com.contextsmith.nlp.email.parser;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -56,12 +56,6 @@ public class EnglishEmailBodyParser {
   public static final int MAX_SIGNATURE_LINES = 10;
   public static final double MIN_SENTENCE_SCORE = 0.02;
   public static final String END_LINE_RE = "\r?\n";
-  public static EnglishEmailBodyParser instance = null;
-
-  public static EnglishEmailBodyParser getInstance() {
-    if (instance == null) instance = new EnglishEmailBodyParser();
-    return instance;
-  }
 
   public static void main(String[] args) {
     /*List<MimeMessage> messages = EmailClustererMain.fetchEmails();
@@ -80,7 +74,10 @@ public class EnglishEmailBodyParser {
       log.debug(parser.parse(plainText));
     }*/
 
-    String plainText = "Yes. Sorry, I missed that.\r\n\r\nThanks,\r\n\r\nWilliam";
+//    String plainText = "Yes. Sorry, I missed that.\r\n\r\nThanks,\r\n\r\nWilliam";
+//    String plainText = "Thanks William, appreciated it,";
+//    String plainText = "Thank you, appreciate your help.";
+    String plainText = "You guys\r\nwill be our champion and innovator!\r\n\r\nBest,\r\n\r\nWill";
 
     EnglishEmailBodyParser parser = new EnglishEmailBodyParser();
     log.debug(parser.parse(plainText));
@@ -219,8 +216,12 @@ public class EnglishEmailBodyParser {
         break;
       }
     }
+
     // Body must have at least one line.
-    if (bodyStartLine == bodyEndLine) ++bodyEndLine;
+    /*if (bodyStartLine == bodyEndLine) {
+      if (bodyStartLine > 0) --bodyStartLine;
+      else if (bodyEndLine < this.lineLabels.length) ++bodyEndLine;
+    }*/
 
     // Assign category.
     for (int i = bodyStartLine; i < bodyEndLine; ++i) {
@@ -303,9 +304,13 @@ public class EnglishEmailBodyParser {
   }*/
 
   private void identifySignature() {
-    for (int i = 0; i < this.lineLabels.length; ++i) {
+    int quotedLineBeginRow = 0;
+    for (; quotedLineBeginRow < this.lineLabels.length; ++quotedLineBeginRow) {
       // Examine only up to the first quoted line.
-      if (this.lineLabels[i] == LineCategory.QUOTED) break;
+      if (this.lineLabels[quotedLineBeginRow] == LineCategory.QUOTED) break;
+    }
+
+    for (int i = 0; i < quotedLineBeginRow; ++i) {
       // If this line already has label, then skip.
       if (this.lineLabels[i] != null) continue;
 
@@ -321,8 +326,14 @@ public class EnglishEmailBodyParser {
       boolean condition13 = map1.containsKey(LineFeature.HAS_PERSON_NAME);
       boolean condition14 = map1.containsKey(LineFeature.HAS_SENDER_NAME_PREFIX);
 
-      if (i + 1 < this.lineLabels.length) {
-        Map<LineFeature, Double> map2 = this.featureTable.row(i + 1);
+      int nextNonEmptyLine = i + 1;
+      for (; nextNonEmptyLine < quotedLineBeginRow; ++nextNonEmptyLine) {
+        Map<LineFeature, Double> map = this.featureTable.row(nextNonEmptyLine);
+        if (!map.containsKey(LineFeature.IS_EMPTY_LINE)) break;
+      }
+
+      if (nextNonEmptyLine < quotedLineBeginRow) {  // Has next non-empty line.
+        Map<LineFeature, Double> map2 = this.featureTable.row(nextNonEmptyLine);
         if (map2 != null) {
           // Signature line must not be a sentence.
           if (map2.containsKey(LineFeature.IS_SENTENCE)) continue;
@@ -335,26 +346,18 @@ public class EnglishEmailBodyParser {
 
           if (condition11 && (condition21 || condition22 || condition23 || condition24)) {
             this.lineLabels[i] = LineCategory.SIGNATURE;
-            this.lineLabels[i + 1] = LineCategory.SIGNATURE;
+            this.lineLabels[nextNonEmptyLine] = LineCategory.SIGNATURE;
             break;  // Stop looking.
           } else if (condition10 && condition22 && (condition23 || condition24)) {
-            this.lineLabels[i + 1] = LineCategory.SIGNATURE;
+            this.lineLabels[nextNonEmptyLine] = LineCategory.SIGNATURE;
             break;  // Stop looking.
           }
-          /*else if (condition14 && condition21 && condition22) {
-            this.lineLabels[i + 1] = LineCategory.SIGNATURE;
-            break;  // Stop looking.
-          }*/
         }
-      } else {
+      } else {  // Does not have next line.
         if (condition12 && (condition13 || condition14)) {
           this.lineLabels[i] = LineCategory.SIGNATURE;
           break;
         }
-      }
-      if (condition11 && condition12) {
-        this.lineLabels[i] = LineCategory.SIGNATURE;
-        break;
       }
     }
   }

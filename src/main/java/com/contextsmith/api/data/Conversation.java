@@ -5,13 +5,13 @@ import java.util.TreeSet;
 
 public class Conversation implements Comparable<Conversation> {
 
-  private String id;  // Gmail thread id?
+  private String conversationId;
   private String subject;
   private Date lastSentDate;
   private TreeSet<ContextMessage> contextMessages;
 
-  public Conversation(String id) {
-    this.id = id;
+  public Conversation(String conversationId) {
+    this.conversationId = conversationId;
     this.subject = null;
     this.lastSentDate = null;
     this.contextMessages = new TreeSet<ContextMessage>();
@@ -46,8 +46,8 @@ public class Conversation implements Comparable<Conversation> {
     return this.contextMessages;
   }
 
-  public String getId() {
-    return this.id;
+  public String getConversationId() {
+    return this.conversationId;
   }
 
   public Date getLastSentDate() {

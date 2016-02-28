@@ -19,6 +19,7 @@ import javax.mail.Part;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
@@ -41,10 +42,17 @@ public class MimeMessageUtil {
   static final Logger log = LogManager.getLogger(MimeMessageUtil.class);
 
   public static final String MIME_MESSAGE_ID_HEADER = "Message-ID";
+  public static final String LIST_UNSUBSCRIBE_HEADER = "List-Unsubscribe";
+  public static final String REFERENCES_HEADER = "References";
+  public static final String SOURCE_INBOX_HEADER = "Source-Inbox";
+  public static final String DELIVERED_TO_HEADER = "Delivered-To";
+  public static final String X_RECEIVED_HEADER = "X-Received";
+  public static final String RETURN_PATH_HEADER = "Return-Path";
+  public static final String IN_REPLY_TO_HEADER = "In-Reply-To";
+  public static final String GMAIL_THREAD_ID_HEADER = "Gmail-Thread-Id";
+  public static final String GMAIL_MESSAGE_ID_HEADER = "Gmail-Message-Id";
 
   // Mime types.
-  public static final String TEXT_PLAIN_TYPE = "text/plain";
-  public static final String TEXT_HTML_TYPE = "text/html";
   public static final String TEXT_CALENDAR_TYPE = "text/calendar";
 
   public static void collectPartsRecursively(
@@ -61,15 +69,15 @@ public class MimeMessageUtil {
         // Recursive calls.
         collectPartsRecursively(parts.getBodyPart(i), multimap);
       }
-    } else if (message.isMimeType(TEXT_PLAIN_TYPE)) {
-      log.trace("MimeMessage contains: " + TEXT_PLAIN_TYPE);
+    } else if (message.isMimeType(MediaType.TEXT_PLAIN)) {
+      log.trace("MimeMessage contains: " + MediaType.TEXT_PLAIN);
       String s = contentToString(contentObject);
-      if (StringUtils.isNotBlank(s)) multimap.put(TEXT_PLAIN_TYPE, s.trim());
+      if (StringUtils.isNotBlank(s)) multimap.put(MediaType.TEXT_PLAIN, s.trim());
 
-    } else if (message.isMimeType(TEXT_HTML_TYPE)) {
-      log.trace("MimeMessage contains: " + TEXT_HTML_TYPE);
+    } else if (message.isMimeType(MediaType.TEXT_HTML)) {
+      log.trace("MimeMessage contains: " + MediaType.TEXT_HTML);
       String s = contentToString(contentObject);
-      if (StringUtils.isNotBlank(s)) multimap.put(TEXT_HTML_TYPE, s.trim());
+      if (StringUtils.isNotBlank(s)) multimap.put(MediaType.TEXT_HTML, s.trim());
 
     } else if (message.isMimeType(TEXT_CALENDAR_TYPE)) {
       log.trace("MimeMessage contains: " + TEXT_CALENDAR_TYPE);
@@ -118,6 +126,35 @@ public class MimeMessageUtil {
     // Get plain text with preserved line breaks by disabled prettyPrint
     return Jsoup.clean(s, "", Whitelist.none(),
                        new Document.OutputSettings().prettyPrint(false));
+  }
+
+  public static boolean existHeader(MimeMessage message, String header) {
+    return getFirstHeader(message, header) != null;
+  }
+
+  public static String extractPlainText(MimeMessage message)
+      throws IOException, MessagingException {
+    ListMultimap<String, String> multimap = ArrayListMultimap.create();
+    collectPartsRecursively(message, multimap);
+
+    StringBuilder builder = new StringBuilder();
+    for (String plain : multimap.get(MediaType.TEXT_PLAIN)) {
+      if (StringUtils.isNotBlank(plain)) {
+        log.trace("Found plain text: {}", plain);
+        builder.append(plain).append(System.lineSeparator());
+      }
+    }
+    if (builder.length() > 0) return builder.toString();
+
+    // We only look for HTML parts when there is no plain-text parts.
+    for (String html : multimap.get(MediaType.TEXT_HTML)) {
+      String plain = convertHtmlToPlainText(html);
+      if (StringUtils.isNotBlank(plain)) {
+        log.trace("Converted from HTML: {}", plain);
+        builder.append(plain).append(System.lineSeparator());
+      }
+    }
+    return builder.toString();
   }
 
   /*public static String extractHtmlText(MimeMessage message)
@@ -194,31 +231,6 @@ public class MimeMessageUtil {
     return plainText;
   }*/
 
-  public static String extractPlainText(MimeMessage message)
-      throws IOException, MessagingException {
-    ListMultimap<String, String> multimap = ArrayListMultimap.create();
-    collectPartsRecursively(message, multimap);
-
-    StringBuilder builder = new StringBuilder();
-    for (String plain : multimap.get(TEXT_PLAIN_TYPE)) {
-      if (StringUtils.isNotBlank(plain)) {
-        log.trace("Found plain text: {}", plain);
-        builder.append(plain).append(System.lineSeparator());
-      }
-    }
-    if (builder.length() > 0) return builder.toString();
-
-    // We only look for HTML parts when there is no plain-text parts.
-    for (String html : multimap.get(TEXT_HTML_TYPE)) {
-      String plain = convertHtmlToPlainText(html);
-      if (StringUtils.isNotBlank(plain)) {
-        log.trace("Converted from HTML: {}", plain);
-        builder.append(plain).append(System.lineSeparator());
-      }
-    }
-    return builder.toString();
-  }
-
   public static void filterByDateRange(List<MimeMessage> messages,
                                        Date startSentDate, Date endSentDate) {
     for (Iterator<MimeMessage> iter = messages.iterator(); iter.hasNext();) {
@@ -232,20 +244,59 @@ public class MimeMessageUtil {
     }
   }
 
-  public static String getHeader(MimeMessage message, String field) {
+  public static InternetAddress getDeliveredTo(MimeMessage message) {
+    String address = getFirstHeader(message, DELIVERED_TO_HEADER);
+    if (StringUtils.isNotBlank(address)) {
+      return InternetAddressUtil.newIAddress(
+          InternetAddressUtil.normalizeAddress(address));
+    }
+    return null;
+  }
+
+  public static String getFirstHeader(MimeMessage message, String field) {
     String value = null;
     try { value = message.getHeader(field, null); }
     catch (MessagingException e) {}
     return value;
   }
 
+  public static String getGmailMessageId(MimeMessage message) {
+    return getFirstHeader(message, GMAIL_MESSAGE_ID_HEADER);
+  }
+
+  public static String[] getListUnsubscribe(MimeMessage message) {
+    String value = getFirstHeader(message, LIST_UNSUBSCRIBE_HEADER);
+    return (value == null) ? null : value.split("\\s+");
+  }
+
+  /*public static String getGmailMessageId(MimeMessage message) {
+    return getFirstHeader(message, MimeMessageUtil.GMAIL_MESSAGE_ID_HEADER);
+  }
+
+  public static String getGmailThreadId(MimeMessage message) {
+    return getFirstHeader(message, MimeMessageUtil.GMAIL_THREAD_ID_HEADER);
+  }*/
+
   public static String getMessageId(MimeMessage message) {
-    return getHeader(message, MIME_MESSAGE_ID_HEADER);
+    return getFirstHeader(message, MIME_MESSAGE_ID_HEADER);
+  }
+
+  public static String[] getReferences(MimeMessage message) {
+    String value = getFirstHeader(message, REFERENCES_HEADER);
+    return (value == null) ? null : value.split("\\s+");
+  }
+
+  public static String[] getSourceInboxes(MimeMessage message) {
+    try {
+      return message.getHeader(SOURCE_INBOX_HEADER);
+    } catch (MessagingException e) {
+      log.error(e);
+    }
+    return null;
   }
 
   public static Set<InternetAddress> getValidAddresses(MimeMessage message,
                                                        AddressField type) {
-    Set<InternetAddress> results = new HashSet<>();
     Address[] addresses = null;
     try {
       switch(type) {
@@ -255,28 +306,30 @@ public class MimeMessageUtil {
       case CC: addresses = message.getRecipients(RecipientType.CC); break;
       case BCC: addresses = message.getRecipients(RecipientType.BCC); break;
       case ANY_RECIPIENT: addresses = message.getAllRecipients(); break;
-      default: log.error("Unknown address field: " + type);
+      default: log.error("Unknown address field: {}", type);
       }
     } catch (AddressException e) {
       // ignore
     } catch (MessagingException e) {
       log.error(e);
     }
+
+    Set<InternetAddress> results = new HashSet<>();
     if (addresses != null) {
       for (Address address : addresses) {
         InternetAddress addr = (InternetAddress) address;
-        if (InternetAddressUtil.isValidAddress(addr)) {
-          // Lowercase all email addresses.
-          addr.setAddress(addr.getAddress().toLowerCase());
+        if (!InternetAddressUtil.isValidAddress(addr)) continue;
 
-          // Converts encoding and ensures personal field is populated.
-          String personal = addr.getPersonal();
-          if (personal != null) {
-            try { addr.setPersonal(personal, StandardCharsets.UTF_8.name()); }
-            catch (UnsupportedEncodingException e) {}
-          }
-          results.add(addr);
+        // Normalize email addresses.
+        addr.setAddress(InternetAddressUtil.normalizeAddress(addr.getAddress()));
+
+        // Converts encoding and ensures personal field is populated.
+        String personal = addr.getPersonal();
+        if (personal != null) {
+          try { addr.setPersonal(personal, StandardCharsets.UTF_8.name()); }
+          catch (UnsupportedEncodingException e) {}
         }
+        results.add(addr);
       }
     }
     return results;
@@ -306,10 +359,27 @@ public class MimeMessageUtil {
     return getValidAddresses(message, AddressField.FROM);
   }
 
+  public static boolean hasMailingListInRecipients(MimeMessage message) {
+    String[] unsubscribeList = getListUnsubscribe(message);
+    return unsubscribeList != null && unsubscribeList.length > 0;
+  }
+
   // Check if this text contains HTML tags.
   public static boolean isHtml(String text) {
     if (StringUtils.isBlank(text)) return false;
     return Pattern.compile("</\\w+>").matcher(text).find();
+  }
+
+  public static boolean isSentGmail(MimeMessage message) {
+    if (existHeader(message, RETURN_PATH_HEADER)) return false;
+
+    // Make sure Delivered-To address is same as that of sender (Gmail-specific)
+    InternetAddress deliveredTo = getDeliveredTo(message);
+    if (deliveredTo == null) return false;
+    Set<InternetAddress> senders = getValidSenders(message);
+    if (senders.isEmpty()) return false;
+    InternetAddress sender = senders.iterator().next();
+    return sender.equals(deliveredTo);
   }
 
   // For debugging purpose.

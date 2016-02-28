@@ -24,7 +24,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.contextsmith.utils.MimeMessageUtil;
 import com.contextsmith.utils.StringUtil;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.common.base.Stopwatch;
 
 public class EmailFetcher {
@@ -33,10 +35,9 @@ public class EmailFetcher {
 
   static final Logger log = LogManager.getLogger(EmailFetcher.class);
 
-  public static final String SOURCE_INBOX_HEADER_NAME = "Source-Inbox";
-
   // Directory to store user credentials for this application.
   public static final String DEFAULT_DATA_STORE_DIR = "indifferenzetester@gmail.com";
+//  public static final String DEFAULT_DATA_STORE_DIR = "rcwang@gmail.com";
   public static final File DEFAULT_DATA_STORE_FILE = new File(
       System.getProperty("user.home"), ".credentials/" + DEFAULT_DATA_STORE_DIR);
   public static final String DEFAULT_ACCESS_TOKEN = "test";
@@ -57,7 +58,7 @@ public class EmailFetcher {
     if (!StringUtils.isBlank(email)) {
       for (MimeMessage message : messages) {
         try {
-          message.addHeader(SOURCE_INBOX_HEADER_NAME, email);
+          message.addHeader(MimeMessageUtil.SOURCE_INBOX_HEADER, email);
         } catch (MessagingException e) {
           log.error(e);
           e.printStackTrace();
@@ -106,15 +107,6 @@ public class EmailFetcher {
     return messages;
   }
 
-  public static String[] getSourceInboxes(MimeMessage message) {
-    try {
-      return message.getHeader(SOURCE_INBOX_HEADER_NAME);
-    } catch (MessagingException e) {
-      log.error(e);
-    }
-    return null;
-  }
-
   private EmailSource source;
   private ExecutorService executor;
   private Set<Callable<List<MimeMessage>>> callables;
@@ -136,12 +128,27 @@ public class EmailFetcher {
     });
   }
 
-  public Collection<MimeMessage> startFetch() throws InterruptedException {
+  public void shutdown(long waitTimeInMillis) {
+    try {
+      this.executor.shutdown();
+      this.executor.awaitTermination(waitTimeInMillis, TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      log.error(e);
+    } finally {
+      if (!this.executor.isTerminated()) {
+        log.warn("Killing non-finished tasks.");
+      }
+      this.executor.shutdownNow();
+    }
+  }
+
+  public Collection<MimeMessage> startFetch()
+      throws InterruptedException, GoogleJsonResponseException {
     return startFetch(null);
   }
 
   public Collection<MimeMessage> startFetch(Long timeOutInMillis)
-      throws InterruptedException {
+      throws InterruptedException, GoogleJsonResponseException {
     // Blocking
     List<Future<List<MimeMessage>>> futures = null;
     if (timeOutInMillis == null) {
@@ -150,6 +157,7 @@ public class EmailFetcher {
       futures = this.executor.invokeAll(this.callables, timeOutInMillis,
                                         TimeUnit.MILLISECONDS);
     }
+    this.callables.clear();
 
     // Collect messages.
     Map<String, MimeMessage> idToMessageMap = new HashMap<>();
@@ -158,7 +166,14 @@ public class EmailFetcher {
       try {
         messages = future.get();
       } catch (ExecutionException e) {
-        log.error(e);
+        // If exception is related to gmail api, then throw; otherwise skip.
+        if (e.getCause() instanceof GoogleJsonResponseException) {
+          log.error(e.getCause());
+          throw (GoogleJsonResponseException) e.getCause();
+        } else {
+          log.error(e);
+          e.printStackTrace();
+        }
       }
       if (messages == null || messages.isEmpty()) continue;
 
@@ -169,9 +184,9 @@ public class EmailFetcher {
           if (msg == null) {
             idToMessageMap.put(messageId, message);
           } else {
-            String[] sourceInboxes = getSourceInboxes(message);
+            String[] sourceInboxes = MimeMessageUtil.getSourceInboxes(message);
             for (String sourceInbox : sourceInboxes) {
-              msg.addHeader(SOURCE_INBOX_HEADER_NAME, sourceInbox);
+              msg.addHeader(MimeMessageUtil.SOURCE_INBOX_HEADER, sourceInbox);
             }
           }
         }

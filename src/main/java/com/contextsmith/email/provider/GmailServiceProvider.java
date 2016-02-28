@@ -58,9 +58,6 @@ public class GmailServiceProvider {
   public static final String CLIENT_SECRET_FILE = "client_secret.json";
   public static final String APPLICATION_NAME = "Context-Smith Gmail Service Provider";
 
-  public static final String GMAIL_THREAD_ID = "Gmail-Thread-Id";
-  public static final String GMAIL_MESSAGE_ID = "Gmail-Message-Id";
-
   public static final int MAX_CONCURRENT_THREADS = 4;
   public static final int MAX_FETCHING_RETRIES = 3;
   public static final int MAX_REQUEST_PER_BATCH = 100;
@@ -122,31 +119,19 @@ public class GmailServiceProvider {
     return credential;
   }
 
-  public static String getGmailMessageId(MimeMessage message) {
-    return MimeMessageUtil.getHeader(message, GMAIL_MESSAGE_ID);
-  }
-
-  public static String getGmailThreadId(MimeMessage message) {
-    return MimeMessageUtil.getHeader(message, GMAIL_THREAD_ID);
-  }
-
   private static List<Message> findMissingMessages(
-      List<Message> messages,
-      List<MimeMessage> mimeMessages) {
-    Set<String> mailIds = new HashSet<>();
-    for (MimeMessage mimeMessage : mimeMessages) {
-      String mailId = null;
-      try {
-        mailId = mimeMessage.getHeader(GMAIL_MESSAGE_ID, null);
-      } catch (MessagingException e) {
-        e.printStackTrace();
-      }
-      if (mailId == null) continue;
-      mailIds.add(mailId);
+      List<Message> emailsToFetch,
+      List<MimeMessage> emailsFetched) {
+    Set<String> fetchedIds = new HashSet<>();
+    for (MimeMessage message : emailsFetched) {
+      String id = MimeMessageUtil.getGmailMessageId(message);  // gmail id.
+      if (id == null) continue;
+      fetchedIds.add(id);
     }
     List<Message> missingMessages = new ArrayList<>();
-    for (Message message : messages) {
-      if (!mailIds.contains(message.getId())) {
+    for (Message message : emailsToFetch) {
+      String id = message.getId();  // gmail id.
+      if (!fetchedIds.contains(id)) {
         missingMessages.add(message);
       }
     }
@@ -167,29 +152,36 @@ public class GmailServiceProvider {
       public void onSuccess(Message message, HttpHeaders responseHeaders)
           throws IOException {
         byte[] emailBytes = Base64.decodeBase64(message.getRaw());
-        Properties props = new Properties();
-        Session session = Session.getDefaultInstance(props, null);
+        InputStream is = new ByteArrayInputStream(emailBytes);
+        Session session = Session.getDefaultInstance(new Properties(), null);
+        MimeMessage mimeMessage = null;
 
         try {
-          MimeMessage mimeMessage = new MimeMessage(
-              session, new ByteArrayInputStream(emailBytes));
-          mimeMessage.addHeader(GMAIL_MESSAGE_ID, message.getId());
-          mimeMessage.addHeader(GMAIL_THREAD_ID, message.getThreadId());
-          synchronized (mimeMessages) {
-            mimeMessages.add(mimeMessage);
-
-            if (mimeMessages.size() % MAX_REQUEST_PER_BATCH == 0 ||
-                mimeMessages.size() == maxMessages) {
-              log.debug(String.format(
-                  "[%d%%] %d/%d fetched @ %.1f emails/sec. %s",
-                  Math.round(100.0 * mimeMessages.size() / maxMessages),
-                  mimeMessages.size(), maxMessages,
-                  1000.0 * mimeMessages.size() / stopwatch.elapsed(TimeUnit.MILLISECONDS),
-                  ProcessUtil.getHeapConsumption()));
-            }
-          }
+          mimeMessage = new MimeMessage(session, is);
+          // We store gmail's message id to later determine those messages that
+          // are missing, and need to be re-fetched.
+          mimeMessage.addHeader(MimeMessageUtil.GMAIL_MESSAGE_ID_HEADER,
+                                message.getId());
+          mimeMessage.addHeader(MimeMessageUtil.GMAIL_THREAD_ID_HEADER,
+                                message.getThreadId());
         } catch (MessagingException e) {
+          log.error(e);
           e.printStackTrace();
+        }
+        if (mimeMessage == null) return;
+
+        // Important: Ensures thread-safe!
+        synchronized (mimeMessages) {
+          mimeMessages.add(mimeMessage);
+        }
+        if (mimeMessages.size() % MAX_REQUEST_PER_BATCH == 0 ||
+            mimeMessages.size() == maxMessages) {
+          log.debug(String.format(
+              "[%d%%] %d/%d fetched @ %.1f emails/sec. %s",
+              Math.round(100.0 * mimeMessages.size() / maxMessages),
+              mimeMessages.size(), maxMessages,
+              1000.0 * mimeMessages.size() / stopwatch.elapsed(TimeUnit.MILLISECONDS),
+              ProcessUtil.getHeapConsumption()));
         }
       }
     };
@@ -354,7 +346,7 @@ public class GmailServiceProvider {
                           .list(userId).setQ(query)
                           .setPageToken(pageToken).execute();
       } catch (IOException e) {
-        log.warn(e);
+        log.error(e);
       }
     }
     return messages;

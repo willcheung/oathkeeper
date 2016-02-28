@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>context-smith</groupId>
   <artifactId>context-smith</artifactId>
-  <version>0.0.5</version>
+  <version>0.1.2</version>
   
   <build>
     <sourceDirectory>src/main/java</sourceDirectory>
@@ -196,30 +196,50 @@
       <artifactId>httpclient</artifactId>
       <version>4.5.1</version>
     </dependency>
-    <dependency>
+    <!-- <dependency>
       <groupId>com.esotericsoftware</groupId>
       <artifactId>kryo</artifactId>
       <version>3.0.3</version>
-    </dependency>
+    </dependency> -->
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>
       <artifactId>jackson-databind</artifactId>
       <version>2.6.3</version>
     </dependency>
-    <dependency>
+    <!-- <dependency>
       <groupId>net.openhft</groupId>
       <artifactId>chronicle-map</artifactId>
       <version>2.3.9</version>
-    </dependency>
+    </dependency> -->
     <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
       <version>1.7.13</version>
     </dependency>
-    <dependency>
+    <!-- <dependency>
       <groupId>it.unimi.dsi</groupId>
       <artifactId>dsiutils</artifactId>
       <version>2.2.4</version>
+    </dependency> -->
+    <!-- <dependency>
+      <groupId>org.ocpsoft.prettytime</groupId>
+      <artifactId>prettytime</artifactId>
+      <version>4.0.1.Final</version>
+    </dependency>
+    <dependency>
+      <groupId>org.ocpsoft.prettytime</groupId>
+      <artifactId>prettytime-nlp</artifactId>
+      <version>4.0.1.Final</version>
+    </dependency> -->
+    <dependency>
+      <groupId>com.joestelmach</groupId>
+      <artifactId>natty</artifactId>
+      <version>0.12</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.opennlp</groupId>
+      <artifactId>opennlp-tools</artifactId>
+      <version>1.6.0</version>
     </dependency>
   </dependencies>
 </project>

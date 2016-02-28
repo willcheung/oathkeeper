@@ -17,19 +17,28 @@ import com.google.common.collect.Sets;
 
 public class InternetAddressUtil {
 
-  public static final Set<String> COMMON_MAIL_HOST_DOMAINS =
-  Sets.newHashSet("gmail.com", "yahoo.com", "live.com", "hotmail.com",
-                  "aol.com", "mail.com", "inbox.com", "outlook.com");
+  public static final Set<String> COMMON_WEBMAIL_DOMAIN = Sets.newHashSet(
+      "gmail.com",
+      "yahoo.com",
+      "live.com",
+      "hotmail.com",
+      "aol.com",
+      "mail.com",
+      "inbox.com",
+      "outlook.com"
+  );
 
   // Removes invalid addresses from the input collection of 'addressesToFilter'.
   public static void filterInvalidAddresses(
       Set<InternetAddress> addressesToFilter,
       Set<InternetAddress> addressesToIgnore,
-      String domainToIgnore) {
+      String domainToIgnore,
+      boolean ignoreCommonWebmailDomain) {
     for (Iterator<InternetAddress> iter = addressesToFilter.iterator();
          iter.hasNext();) {
       InternetAddress address = iter.next();
-      if (shouldIgnore(address, domainToIgnore, addressesToIgnore)) {
+      if (shouldIgnore(address, domainToIgnore, addressesToIgnore,
+                       ignoreCommonWebmailDomain)) {
         iter.remove();
       }
     }
@@ -69,7 +78,7 @@ public class InternetAddressUtil {
 
   public static boolean isCommonDomain(InternetAddress address) {
     String userDomain = getAddressDomain(address).toLowerCase();
-    return COMMON_MAIL_HOST_DOMAINS.contains(userDomain);
+    return COMMON_WEBMAIL_DOMAIN.contains(userDomain);
   }
 
   // Check the validity of the e-mail address.
@@ -86,15 +95,24 @@ public class InternetAddressUtil {
     }
   }
 
+  public static String normalizeAddress(String address) {
+    address = address.replaceFirst("\\+.*?@", "@");
+    return address.toLowerCase();
+  }
+
   public static boolean shouldIgnore(InternetAddress address,
                                      String domainToIgnore,
-                                     Set<InternetAddress> addressesToIgnore) {
+                                     Set<InternetAddress> addressesToIgnore,
+                                     boolean ignoreCommonWebmailDomain) {
     checkNotNull(address);
     if (addressesToIgnore != null && addressesToIgnore.contains(address)) {
       return true;
     }
     if (StringUtils.isNotBlank(domainToIgnore) &&
-        address.getAddress().matches("(?i).+\\b\\Q" + domainToIgnore + "\\E")) {
+        getAddressDomain(address).toLowerCase().endsWith(domainToIgnore.toLowerCase())) {
+      return true;
+    }
+    if (ignoreCommonWebmailDomain && isCommonDomain(address)) {
       return true;
     }
     return false;

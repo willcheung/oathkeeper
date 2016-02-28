@@ -13,12 +13,15 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.mortbay.servlet.GzipFilter;
 
+import com.contextsmith.utils.ProcessUtil;
+
 public class ServerMain {
 
   static final Logger log = LogManager.getLogger(ServerMain.class);
-  public static final int DEFAULT_SERVER_PORT = 8889;
 
   public static void main(String[] args) throws Exception {
+    Integer port = getPortOrDie(args);
+
     ServletContextHandler context = new ServletContextHandler(
         ServletContextHandler.SESSIONS);
     context.setContextPath("/");
@@ -30,12 +33,6 @@ public class ServerMain {
     holder.setInitParameter("mimeTypes", "application/json");
     context.addFilter(holder, "/*", EnumSet.of(DispatcherType.REQUEST));
 
-    int port = DEFAULT_SERVER_PORT;
-    String env = System.getenv("PORT");  // Heroku passes port via environment.
-    if (!StringUtils.isBlank(env)) {
-      try { port = Integer.valueOf(env); }
-      catch (NumberFormatException e) {}
-    }
     Server server = new Server(port);
     log.info("Server started listening on port {}", port);
     server.setHandler(context);
@@ -55,5 +52,27 @@ public class ServerMain {
     } finally {
       server.destroy();
     }
+  }
+
+  // Get port from command line first, then system environment.
+  private static int getPortOrDie(String[] args) {
+    Integer port = null;
+    if (args.length > 0 && args[0] != null) {
+      try { port = Integer.valueOf(args[0]); }
+      catch (NumberFormatException e) {}
+    }
+    if (port == null) {
+      // Heroku passes port via environment.
+      String env = System.getenv("PORT");
+      if (!StringUtils.isBlank(env)) {
+        try { port = Integer.valueOf(env); }
+        catch (NumberFormatException e) {}
+      }
+    }
+    if (port == null) {
+      ProcessUtil.die("Error: Missing port in first command-line argument "
+                    + "(dev: 8888, release: 8889)");
+    }
+    return port;
   }
 }

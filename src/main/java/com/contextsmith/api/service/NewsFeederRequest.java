@@ -12,9 +12,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import com.contextsmith.email.provider.EmailFilterer;
 import com.contextsmith.utils.InternetAddressUtil;
-import com.contextsmith.utils.StringUtil;
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
@@ -34,9 +32,7 @@ public class NewsFeederRequest {
   protected boolean showPreview;
   protected boolean resolveProjectName;
   protected List<TokenEmailPair> tokenEmailPairs;
-//  protected String accessToken;
-//  protected InternetAddress userEmail;
-  protected EmailFilterer messageFilterer;
+//  protected EmailFilterer messageFilterer;
 
   // These are optional (can be null).
   protected Long startTimeInSec;
@@ -47,8 +43,6 @@ public class NewsFeederRequest {
   protected List<Set<InternetAddress>> externalClusters;
 
   public NewsFeederRequest() {
-//    this.accessToken = null;
-//    this.userEmail = null;
     this.tokenEmailPairs = null;
     this.searchQuery = null;
     this.externalClusters = null;
@@ -59,7 +53,7 @@ public class NewsFeederRequest {
     this.startTimeInSec = null;
     this.endTimeInSec = null;
     this.internalDomain = null;
-    this.messageFilterer = null;
+//    this.messageFilterer = null;
   }
 
   public String getCallbackUrl() {
@@ -86,9 +80,9 @@ public class NewsFeederRequest {
     return this.maxMessages;
   }
 
-  public EmailFilterer getMessageFilterer() {
+  /*public EmailFilterer getMessageFilterer() {
     return this.messageFilterer;
-  }
+  }*/
 
   public String getSearchQuery() {
     return this.searchQuery;
@@ -113,10 +107,6 @@ public class NewsFeederRequest {
   public boolean isShowPreview() {
     return this.showPreview;
   }
-
-  /*public void setAccessToken(String accessToken) {
-    this.accessToken = accessToken;
-  }*/
 
   public void parseExternalClusterJson(String json) {
     if (StringUtils.isBlank(json)) return;
@@ -180,9 +170,9 @@ public class NewsFeederRequest {
     this.maxMessages = maxMessages;
   }
 
-  public void setMessageFilterer(EmailFilterer messageFilterer) {
+  /*public void setMessageFilterer(EmailFilterer messageFilterer) {
     this.messageFilterer = messageFilterer;
-  }
+  }*/
 
   public void setResolveProjectName(Boolean resolve) {
     if (resolve == null) return;
@@ -206,16 +196,9 @@ public class NewsFeederRequest {
     this.tokenEmailPairs = tokenEmailPairs;
   }
 
-  /*public void setUserEmail(String userEmailStr) {
-    if (StringUtils.isBlank(userEmailStr)) return;
-    this.userEmail = InternetAddressUtil.newIAddress(userEmailStr);
-  }*/
-
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-//    builder.append(this.accessToken).append(OUTPUT_SEP);
-//    builder.append(this.userEmail).append(OUTPUT_SEP);
     builder.append(this.tokenEmailPairs).append(OUTPUT_SEP);
     builder.append(this.searchQuery).append(OUTPUT_SEP);
     builder.append(this.externalClusters).append(OUTPUT_SEP);
@@ -226,34 +209,5 @@ public class NewsFeederRequest {
     builder.append(this.startTimeInSec).append(OUTPUT_SEP);
     builder.append(this.endTimeInSec).append(OUTPUT_SEP);
     return builder.toString();
-  }
-}
-
-class TokenEmailPair {
-
-  private String token;
-  private String email;
-
-  public TokenEmailPair(String accessToken, String emailStr) {
-    this.token = accessToken;
-    this.email = emailStr;
-  }
-
-  public String getAccessToken() {
-    return this.token;
-  }
-
-  public InternetAddress getEmailAddress() {
-    return InternetAddressUtil.newIAddress(this.email);
-  }
-
-  public String getEmailStr() {
-    return this.email;
-  }
-
-  @Override
-  public String toString() {
-    return String.format("%s(%s)", this.email,
-                         StringUtil.substringFromLast(this.token, 5));
   }
 }

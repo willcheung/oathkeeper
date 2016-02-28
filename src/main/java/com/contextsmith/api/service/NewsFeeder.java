@@ -8,14 +8,14 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Date;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
@@ -36,13 +36,15 @@ import org.eclipse.jetty.http.HttpStatus;
 import com.contextsmith.api.data.Project;
 import com.contextsmith.api.data.ProjectFactory;
 import com.contextsmith.email.cluster.EmailClusterer;
-import com.contextsmith.email.cluster.UserEmailAliasFinder;
 import com.contextsmith.email.provider.EmailFetcher;
 import com.contextsmith.email.provider.EmailFetcher.EmailSource;
 import com.contextsmith.email.provider.EmailFilterer;
 import com.contextsmith.email.provider.GmailQueryBuilder;
 import com.contextsmith.utils.EmailClustererUtil;
 import com.contextsmith.utils.InternetAddressUtil;
+import com.contextsmith.utils.StringUtil;
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.common.base.Stopwatch;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -55,25 +57,31 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
 @Path("newsfeed")
-public class NewsFeeder implements Runnable {
+public class NewsFeeder {
 
   static final Logger log = LogManager.getLogger(NewsFeeder.class);
 
-  public static final String EMPTY_JSON_ARRAY = "[]";
+//  public static final String EMPTY_JSON_ARRAY = "[]";
   public static final String START_DATE_PARAM = "startDate";
   public static final String END_DATE_PARAM = "endDate";
 
-  public static final Date DEFAULT_GMAIL_AFTER_DATE =
+  public static final String CALLBACK_REQUEST_METHOD = "POST";
+  public static final String CALLBACK_CONTENT_TYPE_HEADER = "Content-Type";
+  public static final String CALLBACK_CONTENT_TYPE_VALUE = "application/json; charset=UTF-8";
+
+  public static final int DEFAULT_ERROR_HTTP_STATUS_CODE = 400;
+
+  /*public static final Date DEFAULT_GMAIL_AFTER_DATE =
       parseDate("2014/08/01", "yyyy/MM/dd");
   public static final Date DEFAULT_GMAIL_BEFORE_DATE =
-      parseDate("2014/08/31", "yyyy/MM/dd");
+      parseDate("2014/08/31", "yyyy/MM/dd");*/
+
+  private static ExecutorService executor = Executors.newCachedThreadPool();
 
   @GET
   @Path("cluster")
   @Produces(MediaType.APPLICATION_JSON)
   public static String clusterEmails(
-//      @QueryParam("token") String accessToken,
-//      @QueryParam("email") String userEmail,
       @QueryParam("token_emails") String tokenEmailJson,
       @QueryParam("max") Integer maxMessages,  // Optional
       @QueryParam("preview") Boolean showPreview,  // Transient
@@ -88,23 +96,20 @@ public class NewsFeeder implements Runnable {
       return "";
     }
 
-    EmailFilterer filterer = new EmailFilterer();
+    /*EmailFilterer filterer = new EmailFilterer();
     filterer.setRemoveMailListMessages(true);
-    filterer.setRemovePrivateMessages(true);
+    filterer.setRemovePrivateMessages(false);*/
 
     final boolean RESOLVE_PROJECT_NAME = false;
     return createResponse(tokenEmailJson, null, null, startTimeInSec,
                           endTimeInSec, internalDomain, maxMessages,
-                          showPreview, RESOLVE_PROJECT_NAME, filterer,
-                          callbackUrl);
+                          showPreview, RESOLVE_PROJECT_NAME, callbackUrl);
   }
 
   @GET
   @Path("create")
   @Produces(MediaType.APPLICATION_JSON)
   public static String createResponse(
-//      @QueryParam("token") String accessToken,
-//      @QueryParam("email") String userEmail,
       @QueryParam("token_emails") String tokenEmailJson,
       @QueryParam("query") String searchQuery,  // Optional
       @QueryParam("ex_clusters") String externalClusterJson,  // Optional
@@ -114,9 +119,7 @@ public class NewsFeeder implements Runnable {
       @QueryParam("max") Integer maxMessages,  // Transient
       @QueryParam("preview") Boolean showPreview,  // Transient
       @QueryParam("project_name") Boolean resolveProjectName,  // Transient
-      EmailFilterer messageFilterer,
       @QueryParam("callback") String callbackUrl) {  // Optional
-    // TODO(rcwang): add Message IDs input.
 
     // Verify callback URL (if exist).
     if (StringUtils.isNotBlank(callbackUrl) &&
@@ -124,20 +127,19 @@ public class NewsFeeder implements Runnable {
       return "";
     }
 
-    NewsFeederRequest request = new NewsFeederRequest();
-//    request.setAccessToken(accessToken);
+    final NewsFeederRequest request = new NewsFeederRequest();
     request.setCallbackUrl(callbackUrl);
     request.setStartTimeInSec(startTimeInSec);
     request.setEndTimeInSec(endTimeInSec);
-//    request.setUserEmail(userEmail);
-    request.parseTokenEmailJson(tokenEmailJson);
-    request.parseExternalClusterJson(externalClusterJson);
     request.setSearchQuery(searchQuery);
     request.setMaxMessages(maxMessages);
-    request.setInternalDomain(internalDomain);
     request.setShowPreview(showPreview);
     request.setResolveProjectName(resolveProjectName);
-    request.setMessageFilterer(messageFilterer);
+//    request.setMessageFilterer(messageFilterer);
+
+    // Parsing jsons.
+    request.parseTokenEmailJson(tokenEmailJson);
+    request.parseExternalClusterJson(externalClusterJson);
 
     // Verify user email and access token.
     if (request.getTokenEmailPairs() == null ||
@@ -145,6 +147,7 @@ public class NewsFeeder implements Runnable {
       log.error("Missing 'token_emails' parameter.");
       return "";
     }
+    String tokenEmailDomain = null;
     for (TokenEmailPair tokenEmailPair : request.getTokenEmailPairs()) {
       String emailStr = tokenEmailPair.getEmailStr();
       if (!EmailValidator.getInstance().isValid(emailStr)) {
@@ -154,53 +157,90 @@ public class NewsFeeder implements Runnable {
         log.error("Missing access token for email: {}", emailStr);
         return "";
       }
+      String domain = InternetAddressUtil.getAddressDomain(emailStr);
+      if (tokenEmailDomain == null) {
+        tokenEmailDomain = domain;
+      } else if (!tokenEmailDomain.equals(domain)) {
+        log.error("Email addresses do not have identical domains.");
+        return "";
+      }
     }
+
+    // Retrieve internal domain from user parameter first.
+    // If not found, then retrieve from user token's email address.
+    if (StringUtils.isNotBlank(internalDomain)) {
+      request.setInternalDomain(internalDomain);
+    } else if (StringUtils.isNotBlank(tokenEmailDomain)) {
+      request.setInternalDomain(tokenEmailDomain);
+    } else {
+      log.error("Missing company's internal domain.");
+      return "";
+    }
+    log.debug("Company internal domain: {}", request.getInternalDomain());
     log.info(request);
 
-    NewsFeeder runnable = new NewsFeeder();
-    runnable.setRequest(request);
+//    NewsFeeder runnable = new NewsFeeder();
+//    runnable.setRequest(request);
 
-    // TODO(rcwang): Use ExecutorService
-//    ExecutorService executor = Executors.newCachedThreadPool();
-//    executor.submit(runnable);
-
-    if (StringUtils.isBlank(callbackUrl)) {
-      runnable.run();  // Blocking
-      return runnable.getJsonOutput();
-    } else {
-      new Thread(runnable).start();  // Non-blocking
+    if (StringUtils.isBlank(callbackUrl)) {  // No callback. Blocking
+//      runnable.run();
+//      return runnable.getJsonOutput();
+      return processToJson(request);
+    } else {  // Non-blocking
+//      new Thread(runnable).start();
+//      ExecutorService executor = Executors.newSingleThreadExecutor();
+      executor.submit(new Callable<String>() {
+        @Override
+        public String call() throws Exception {
+          return processToJson(request);
+        }
+      });
       return "";
     }
   }
 
-  /*public static void main(String[] args) {
-    createResponse(
-        DEFAULT_ACCESS_TOKEN,
-        DEFAULT_TEST_EMAIL,
-        DEFAULT_GMAIL_AFTER_DATE.getTime() / 1000,
-        DEFAULT_GMAIL_BEFORE_DATE.getTime() / 1000,
-        QUERY_GMAIL_DATA ? DEFAULT_GMAIL_MAX_MESSAGES : DEFAULT_ENRON_MAX_MESSAGES,
-        null,
-        true,
-        false,
-        null,
-        null);
-  }*/
-
-  public static Date parseDate(String dateStr, String dateFormat) {
+  /*public static Date parseDate(String dateStr, String dateFormat) {
     try {
       return new SimpleDateFormat(dateFormat).parse(dateStr);
     } catch (ParseException e) {
       return null;
     }
+  }*/
+
+  public static String processToJson(NewsFeederRequest request) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    Set<Project> projects;
+    try {
+      projects = makeProjects(request);
+    } catch (IllegalStateException e) {
+      return e.getMessage();
+    } catch (GoogleJsonResponseException e) {
+      GoogleJsonError error = e.getDetails();
+      if (error == null) {
+        Integer code = StringUtil.parseLeadingIntegers(e.getMessage());
+        if (code == null) code = DEFAULT_ERROR_HTTP_STATUS_CODE;
+        error = makeGoogleJsonError(HttpStatus.getCode(code).getCode(),
+                                    e.getMessage());
+      }
+      return new Gson().toJson(error);
+    }
+    String jsonOutput = convertProjectsToJson(projects);
+    if (StringUtils.isNotBlank(request.getCallbackUrl())) {
+      execCallback(jsonOutput, request.getCallbackUrl(),
+                   request.getStartTimeInSec(), request.getEndTimeInSec());
+    }
+    log.debug(jsonOutput);
+    log.info("Total elapsed time: {}", stopwatch);
+    return jsonOutput;
   }
+
+//  private String jsonOutput;
+//  private NewsFeederRequest request;
 
   @GET
   @Path("search")
   @Produces(MediaType.APPLICATION_JSON)
   public static String searchEmails(
-//      @QueryParam("token") String accessToken,
-//      @QueryParam("email") String userEmail,
       @QueryParam("token_emails") String tokenEmailJson,
       @QueryParam("max") Integer maxMessages,  // Optional
       @QueryParam("query") String searchQuery,  // Optional
@@ -209,16 +249,16 @@ public class NewsFeeder implements Runnable {
       @QueryParam("in_domain") String internalDomain,  // Optional
       @QueryParam("ex_clusters") String externalClusterJson) {  // Optional
 
-    EmailFilterer filterer = new EmailFilterer();
+    /*EmailFilterer filterer = new EmailFilterer();
     filterer.setRemoveMailListMessages(false);
-    filterer.setRemovePrivateMessages(true);
+    filterer.setRemovePrivateMessages(true);*/
 
     final boolean SHOW_PREVIEW = true;
     final boolean RESOLVE_PROJECT_NAME = false;
     return createResponse(tokenEmailJson, searchQuery, externalClusterJson,
                           startTimeInSec, endTimeInSec, internalDomain,
                           maxMessages, SHOW_PREVIEW, RESOLVE_PROJECT_NAME,
-                          filterer, null);
+                          null);
   }
 
   public static int sendHttpPost(URL url, String json) throws IOException {
@@ -226,8 +266,9 @@ public class NewsFeeder implements Runnable {
               json.getBytes().length, url);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
-    conn.setRequestMethod("POST");
-    conn.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+    conn.setRequestMethod(CALLBACK_REQUEST_METHOD);
+    conn.setRequestProperty(CALLBACK_CONTENT_TYPE_HEADER,
+                            CALLBACK_CONTENT_TYPE_VALUE);
     conn.setDoOutput(true);
 
     OutputStream os = conn.getOutputStream();
@@ -244,6 +285,16 @@ public class NewsFeeder implements Runnable {
     }
     return conn.getResponseCode();
   }
+
+  /*public NewsFeeder() {
+    this.executor = Executors.newCachedThreadPool();
+    this.emailFetcher = new EmailFetcher(EmailSource.GMAIL);
+  }*/
+
+  /*public NewsFeeder(NewsFeederRequest request) {
+    this.setRequest(request);
+    this.jsonOutput = null;
+  }*/
 
   private static String convertProjectsToJson(Set<Project> projects) {
     JsonSerializer<Date> jsonSerializer = new JsonSerializer<Date>() {
@@ -272,35 +323,29 @@ public class NewsFeeder implements Runnable {
     return gson.toJson(projects);
   }
 
-  private String jsonOutput;
-  private NewsFeederRequest request;
-  private EmailFetcher emailFetcher;
+  /*public String getJsonOutput() {
+    return this.jsonOutput;
+  }*/
 
-  public NewsFeeder() {
-    this.emailFetcher = new EmailFetcher(EmailSource.GMAIL);
-  }
-
-  public NewsFeeder(NewsFeederRequest request) {
-    this.setRequest(request);
-    this.jsonOutput = null;
-  }
-
-  public boolean execCallback(String jsonOutput) {
-    if (StringUtils.isBlank(this.request.callbackUrl)) return false;
+  private static boolean execCallback(String jsonOutput,
+                                      String callbackUrl,
+                                      Long startTimeInSec,
+                                      Long endTimeInSec) {
+    if (StringUtils.isBlank(callbackUrl)) return false;
     URL url = null;
     try {
-      URIBuilder builder = new URIBuilder(this.request.callbackUrl);
-      if (this.request.startTimeInSec != null && this.request.endTimeInSec != null) {
-        builder.addParameter(START_DATE_PARAM, Long.toString(this.request.startTimeInSec))
-        .addParameter(END_DATE_PARAM, Long.toString(this.request.endTimeInSec));
+      URIBuilder builder = new URIBuilder(callbackUrl);
+      if (startTimeInSec != null && endTimeInSec != null) {
+        builder.addParameter(START_DATE_PARAM, Long.toString(startTimeInSec))
+               .addParameter(END_DATE_PARAM, Long.toString(endTimeInSec));
       }
       url = builder.build().toURL();
     } catch (URISyntaxException | MalformedURLException | IllegalArgumentException e) {
-      log.error(e + " (" + this.request.callbackUrl + ")");
+      log.error(String.format("%s (%s)", e, callbackUrl));
     }
     if (url == null) return false;
     try {
-      if (sendHttpPost(url, this.jsonOutput) == HttpStatus.OK_200) {
+      if (sendHttpPost(url, jsonOutput) == HttpStatus.OK_200) {
         return true;
       }
     } catch (IOException e) {
@@ -310,106 +355,71 @@ public class NewsFeeder implements Runnable {
     return false;
   }
 
-  public String getJsonOutput() {
-    return this.jsonOutput;
+  private static GoogleJsonError makeGoogleJsonError(int code, String message) {
+    GoogleJsonError error = new GoogleJsonError();
+    error.setCode(code);
+    error.setMessage(message);
+    return error;
   }
 
-  @Override
-  public void run() {
-    Stopwatch stopwatch = Stopwatch.createStarted();
-    this.jsonOutput = null;  // Reset the output.
+  // Should not return 'null'.
+  private static Set<Project> makeProjects(NewsFeederRequest request)
+      throws IllegalStateException, GoogleJsonResponseException {
+    Set<Project> projects = new TreeSet<>();
 
-    // Date constructor take unix time in milliseconds.
-    Date afterThisDate = null;
-    if (this.request.startTimeInSec != null) {
-      afterThisDate = new Date(this.request.startTimeInSec * 1000);
-    }
-    Date beforeThisDate = null;
-    if (this.request.endTimeInSec != null) {
-      beforeThisDate = new Date(this.request.endTimeInSec * 1000);
-    }
-
-    String query = new GmailQueryBuilder()
-        .addQuery(this.request.searchQuery)
-        .addBeforeDate(beforeThisDate)
-        .addAfterDate(afterThisDate)
-        .addClusters(this.request.externalClusters)
+    String gmailQuery = new GmailQueryBuilder()
+        .addQuery(request.getSearchQuery())
+        .addBeforeDate(request.getEndTimeInSec())
+        .addAfterDate(request.getStartTimeInSec())
+        .addClusters(request.getExternalClusters())
         .build();
 
-    for (TokenEmailPair tokenEmailPair : this.request.getTokenEmailPairs()) {
-      this.emailFetcher.addTask(query, tokenEmailPair.getAccessToken(),
-                                tokenEmailPair.getEmailStr(),
-                                this.request.maxMessages);
+    EmailFetcher emailFetcher = new EmailFetcher(EmailSource.GMAIL);
+    for (TokenEmailPair tokenEmailPair : request.getTokenEmailPairs()) {
+      emailFetcher.addTask(gmailQuery, tokenEmailPair.getAccessToken(),
+                           tokenEmailPair.getEmailStr(),
+                           request.getMaxMessages());
     }
     Collection<MimeMessage> messages = null;
     try {
-//      messages = EmailFetcher.fetchGmails(
-//          query, this.request.accessToken, this.request.maxMessages);
-      messages = this.emailFetcher.startFetch();
+      messages = emailFetcher.startFetch();
     } catch (InterruptedException e) {
       log.error(e);
       e.printStackTrace();
+    } finally {
+      emailFetcher.shutdown(1000);  // Wait for max. 1 second.
     }
-    /*catch (IOException e) {
-      if (e instanceof GoogleJsonResponseException) {
-        this.jsonOutput = ((GoogleJsonResponseException) e).getDetails().toString();
-        log.error(this.jsonOutput);
-        execCallback(this.jsonOutput);
-        return;
-      } else {
-        log.error(e);
-        e.printStackTrace();
-        return;
+    if (messages == null || messages.isEmpty()) {
+      GoogleJsonError error = makeGoogleJsonError(
+          HttpStatus.NOT_FOUND_404, "No messages retrieved.");
+      log.warn(error.getMessage());
+      throw new IllegalStateException(new Gson().toJson(error));
+    }
+
+    /*for (MimeMessage message : messages) {
+      if (MimeMessageUtil.isSentGmail(message)) {
+        try {
+          System.out.println(MimeMessageUtil.getMessageId(message));
+          System.out.println(message.getSubject());
+          System.out.println(new Gson().toJson(MimeMessageUtil.getValidRecipients(message)));
+        } catch (MessagingException e) {
+          e.printStackTrace();
+        }
       }
     }*/
-    if (messages == null || messages.isEmpty()) {
-      log.warn("No messages retrieved.");
-      return;
-    }
 
-    // Filter out irrelevant emails.
-    this.request.getMessageFilterer().filterUselessMessages(messages);
-
-    // Extract company's mail address domain.
-    String companyDomain = this.request.internalDomain;
-    if (StringUtils.isBlank(companyDomain)) {
-      // Get the first email, assuming all emails have the same domain.
-      companyDomain = InternetAddressUtil.getAddressDomain(
-          this.request.getTokenEmailPairs().get(0).getEmailStr());
-    }
-    log.debug("Company domain: {}", companyDomain);
-
-    // Construct external clusters.
-    List<Set<InternetAddress>> externalClusters = this.request.externalClusters;
-    if (externalClusters == null) {
-      // Find all user's alias e-mail addresses.
-      Set<InternetAddress> sortedAliasEmails = new LinkedHashSet<>(
-          UserEmailAliasFinder.find(messages).keySet());
-      // Insert all internal email addresses into the alias set.
-      for (TokenEmailPair tokenEmailPairs : this.request.getTokenEmailPairs()) {
-        sortedAliasEmails.add(tokenEmailPairs.getEmailAddress());
-      }
+    List<Set<InternetAddress>> externalClusters = request.getExternalClusters();
+    if (externalClusters == null) {  // Construct external clusters.
       externalClusters = EmailClusterer.findExternalClusters(
-          messages, companyDomain, sortedAliasEmails);
+          messages, request.getTokenEmailPairs(), request.getInternalDomain());
     }
-    if (externalClusters == null) {
-      log.warn("No external clusters found.");
-      return;
+    if (externalClusters == null || externalClusters.isEmpty()) {
+      GoogleJsonError error = makeGoogleJsonError(
+          HttpStatus.NOT_FOUND_404, "No external clusters found.");
+      log.warn(error.getMessage());
+      throw new IllegalStateException(new Gson().toJson(error));
     }
     EmailClustererUtil.printClusters(externalClusters);
-
-    // Use external clusters to find internal clusters.
-    /*List<Set<InternetAddress>> internalClusters =
-        EmailClusterer.findInternalClusters(
-            messages, internalDomain, externalClusters);
-    if (internalClusters == null) {
-      log.warn("No internal clusters found.");
-      return;
-    }
-    EmailClustererUtil.printClusters(internalClusters); */
-
-    // The list index must match between external and internal.
-//    checkState(externalClusters.size() == internalClusters.size());
 
     /*if (beforeThisDate != null && afterThisDate != null) {
       MimeMessageUtil.filterByDateRange(messages, afterThisDate, beforeThisDate);
@@ -418,27 +428,30 @@ public class NewsFeeder implements Runnable {
                 df.format(afterThisDate), df.format(beforeThisDate));
     }*/
 
-    ProjectFactory projectFactory = ProjectFactory.load(messages);
-    Set<Project> projects = new TreeSet<>();
+    // Retain emails sent via mailing-list but remove private ones before
+    // returning results.
+    Collection<MimeMessage> filtered = new EmailFilterer()
+        .setRemoveMailListMessages(false)
+        .setRemovePrivateMessages(true)
+        .filter(messages);
+
+    ProjectFactory projectFactory = new ProjectFactory();
+    projectFactory.loadMessages(filtered);
 
     for (int i = 0; i < externalClusters.size(); ++i) {
       Set<InternetAddress> externalCluster = externalClusters.get(i);
-//      Set<InternetAddress> internalCluster = internalClusters.get(i);
-
       log.debug("Creating project #{}...", i + 1);
+
       Project project = projectFactory.createProject(
-          String.valueOf(i), companyDomain, externalCluster,
-          this.request.showPreview, this.request.resolveProjectName);
+          request.getInternalDomain(), externalCluster,
+          request.isShowPreview(), request.isResolveProjectName());
 
       if (project != null) projects.add(project);
     }
-    this.jsonOutput = convertProjectsToJson(projects);
-    execCallback(this.jsonOutput);
-    log.debug(this.jsonOutput);
-    log.info("Total elapsed time: {}", stopwatch);
+    return projects;
   }
 
-  public void setRequest(NewsFeederRequest request) {
+  /*public void setRequest(NewsFeederRequest request) {
     this.request = request;
-  }
+  }*/
 }

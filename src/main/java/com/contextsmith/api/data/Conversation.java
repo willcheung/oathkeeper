@@ -28,15 +28,6 @@ public class Conversation implements Comparable<Conversation> {
     return success;
   }
 
-  /*public boolean addMimeMessage(MimeMessage mimeMessage, boolean includePreview,
-                                EmailNameResolver enResolver)
-      throws IOException, MessagingException {
-    // Convert from MimeMessage to ContextMessage.
-    ContextMessage contextMessage = new ContextMessage();
-    contextMessage.loadFrom(mimeMessage, includePreview, enResolver);
-    return addContextMessage(contextMessage);
-  }*/
-
   @Override
   public int compareTo(Conversation conversation) {
     return conversation.getLastSentDate().compareTo(this.lastSentDate);

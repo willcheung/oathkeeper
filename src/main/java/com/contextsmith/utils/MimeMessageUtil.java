@@ -4,10 +4,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -41,6 +44,7 @@ public class MimeMessageUtil {
 
   static final Logger log = LogManager.getLogger(MimeMessageUtil.class);
 
+  public static final String SENT_DATE_HEADER = "Date";
   public static final String MIME_MESSAGE_ID_HEADER = "Message-ID";
   public static final String LIST_UNSUBSCRIBE_HEADER = "List-Unsubscribe";
   public static final String REFERENCES_HEADER = "References";
@@ -54,6 +58,10 @@ public class MimeMessageUtil {
 
   // Mime types.
   public static final String TEXT_CALENDAR_TYPE = "text/calendar";
+
+  // Used to parse dates
+  public static final DateTimeFormatter MAIL_DATE_FORMATTER =
+      DateTimeFormatter.ofPattern("EEE, d MMM yyyy HH:mm:ss Z", Locale.US);
 
   public static void collectPartsRecursively(
       Part message, Multimap<String, String> multimap)
@@ -269,6 +277,10 @@ public class MimeMessageUtil {
     return (value == null) ? null : value.split("\\s+");
   }
 
+  public static String getMessageId(MimeMessage message) {
+    return getFirstHeader(message, MIME_MESSAGE_ID_HEADER);
+  }
+
   /*public static String getGmailMessageId(MimeMessage message) {
     return getFirstHeader(message, MimeMessageUtil.GMAIL_MESSAGE_ID_HEADER);
   }
@@ -277,13 +289,16 @@ public class MimeMessageUtil {
     return getFirstHeader(message, MimeMessageUtil.GMAIL_THREAD_ID_HEADER);
   }*/
 
-  public static String getMessageId(MimeMessage message) {
-    return getFirstHeader(message, MIME_MESSAGE_ID_HEADER);
-  }
-
   public static String[] getReferences(MimeMessage message) {
     String value = getFirstHeader(message, REFERENCES_HEADER);
     return (value == null) ? null : value.split("\\s+");
+  }
+
+  public static ZonedDateTime getSentDate(MimeMessage message)
+      throws MessagingException {
+    String mailDateStr = getFirstHeader(message, SENT_DATE_HEADER);
+    if (mailDateStr == null) return null;
+    return ZonedDateTime.from(MAIL_DATE_FORMATTER.parse(mailDateStr));
   }
 
   public static String[] getSourceInboxes(MimeMessage message) {

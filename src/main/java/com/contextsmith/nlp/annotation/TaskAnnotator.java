@@ -1,6 +1,9 @@
 package com.contextsmith.nlp.annotation;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -11,17 +14,23 @@ import org.apache.logging.log4j.Logger;
 
 import com.contextsmith.nlp.email.parser.EnglishEmailBodyParser;
 import com.contextsmith.nlp.email.parser.EnglishScorer;
+import com.contextsmith.utils.MimeMessageUtil;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.Sets;
 import com.joestelmach.natty.DateGroup;
 
 public class TaskAnnotator extends AbstractAnnotator {
 
   private static final Logger log = LogManager.getLogger(TaskAnnotator.class);
+
+  public static final int DEFAULT_WINDOW_SIZE_IN_CHARS = 140;  // Tweet length
   public static final Set<Character> ENDING_CLAUSE_PUNCTS =
       Sets.newHashSet(',', ';', '!', '?');
-  public static final int DEFAULT_WINDOW_SIZE_IN_CHARS = 140;  // Tweet length
   public static final SimpleDateFormat DATE_FORMAT =
       new SimpleDateFormat("EEE, MM/dd/yyyy h:mm a z");
+  public static final Set<String> NON_CRUCIAL_DATES =
+      Sets.newHashSet("now", "today", "may");
+
   private static TaskAnnotator instance = null;
 
   public static synchronized TaskAnnotator getInstance() {
@@ -29,31 +38,48 @@ public class TaskAnnotator extends AbstractAnnotator {
     return instance;
   }
 
-  public static void main(String[] args) {
+  public static Annotation getPayload(Annotation ann) {
+    Object o = ann.getPayload();
+    if (o == null) return null;
+    return (o instanceof Annotation) ? (Annotation) o : null;
+  }
+
+  public static void main(String[] args) throws ParseException {
 //    interactiveRun(getInstance());
 
+    String mailDateStr = "Sat, 27 Feb 2016 16:38:35 -0500";
+    ZonedDateTime baseDate = ZonedDateTime.from(
+        MimeMessageUtil.MAIL_DATE_FORMATTER.parse(mailDateStr));
+
+    Stopwatch stopwatch = Stopwatch.createStarted();
     String s =
-        "We will discuss about the details about the project on Feb 28 2016. " +
+        "Please deliver the report by tomorrow 1am. " +
         "We will discuss this in more detail next Monday. " +
+        "We will discuss about the details about the project on Feb 28. " +
         "We will meet at McDonalds on Milthilda Ave on Thursday, March 3rd. " +
         "Let’s meet inside the lobby of Building 41 next thursday at 5pm. " +
         "The assignment is due Jan. 28, 2016, right before our final exam. " +
         "We will be moving the team outing to next thursday, March 3rd.";
 
-    List<Annotation> tasks = TaskAnnotator.getInstance().annotate(s);
+    Annotation ann = new Annotation(s);
+    List<Annotation> tasks = TaskAnnotator.getInstance().annotate(ann, baseDate);
     for (Annotation task : tasks) {
       log.debug("{} -> {}", toReadableDate(task), task);
     }
+    log.debug("Elapsed time: {}", stopwatch);
   }
 
   private static String toReadableDate(Annotation task) {
-    DateGroup group = DateTimeAnnotator.getPayload(task);
+    Annotation date = TaskAnnotator.getPayload(task);
+    DateGroup group = DateTimeAnnotator.getPayload(date);
     if (group == null) return null;
 
     StringBuilder builder = new StringBuilder();
-    for (Date date : group.getDates()) {
+    for (Date d : group.getDates()) {
       if (builder.length() > 0) builder.append(", ");
-      builder.append(DATE_FORMAT.format(date));
+      ZonedDateTime zdt = ZonedDateTime.ofInstant(d.toInstant(),
+                                                  ZoneId.systemDefault());
+      builder.append(MimeMessageUtil.MAIL_DATE_FORMATTER.format(zdt));
     }
     return String.format("%s (%s, %s)", builder, group.isDateInferred(),
                          group.isTimeInferred());
@@ -66,13 +92,13 @@ public class TaskAnnotator extends AbstractAnnotator {
     this.windowSizeInChars = DEFAULT_WINDOW_SIZE_IN_CHARS;
   }
 
-  public List<Annotation> annotate(Annotation parent, Date baseDate) {
+  public List<Annotation> annotate(Annotation parent, ZonedDateTime baseDate) {
     super.beforeAnnotateCore(parent.getText());
     List<Annotation> annotations = annotateCore(parent, baseDate);
     return super.afterAnnotateCore(annotations);
   }
 
-  public List<Annotation> annotate(String text, Date baseDate) {
+  public List<Annotation> annotate(String text, ZonedDateTime baseDate) {
     return annotate(new Annotation(text), baseDate);
   }
 
@@ -89,7 +115,8 @@ public class TaskAnnotator extends AbstractAnnotator {
     return annotateCore(parent, null);
   }
 
-  private List<Annotation> annotateCore(Annotation parent, Date baseDate) {
+  private List<Annotation> annotateCore(Annotation parent,
+                                        ZonedDateTime baseDate) {
     List<Annotation> tasks = new ArrayList<>();
     List<Annotation> sentences =
         SentenceAnnotator.getInstance().annotate(parent);
@@ -103,6 +130,7 @@ public class TaskAnnotator extends AbstractAnnotator {
       List<Annotation> dates =
           DateTimeAnnotator.getInstance().annotate(sentence, baseDate);
       for (Annotation date : dates) {
+        if (NON_CRUCIAL_DATES.contains(date.getText())) continue;
         Annotation task = findTaskWindow(sentence, date,
                                          this.windowSizeInChars);
         if (task != null) tasks.add(task);
@@ -150,11 +178,10 @@ public class TaskAnnotator extends AbstractAnnotator {
       isLastLeftPunct = ENDING_CLAUSE_PUNCTS.contains(
           sentence.getText().charAt(leftIndex - sentence.getBeginOffset()));
 
+      isLastRightPunct = false;
       if (rightIndex < sentence.getEndOffset()) {
         isLastRightPunct = ENDING_CLAUSE_PUNCTS.contains(
             sentence.getText().charAt(rightIndex - sentence.getBeginOffset()));
-      } else {
-        isLastRightPunct = false;
       }
       ++leftIndex;
       ++rightIndex;
@@ -181,8 +208,7 @@ public class TaskAnnotator extends AbstractAnnotator {
   }
 
   private Annotation initAnnotation(Annotation ann, Annotation date) {
-    ann.setValues(date.getValues());
-    ann.setPayload(date.getPayload());
+    ann.setPayload(date);
     ann.setPriority(this.getPriority());
     ann.setType(this.getAnnotatorType());
     return ann;

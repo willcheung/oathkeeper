@@ -9,6 +9,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -197,6 +199,23 @@ public class AnnotationUtil {
         return Integer.compare(ann1.getPriority(), ann2.getPriority());
       }
     });
+  }
+
+  public static List<Annotation> split(Pattern pattern, Annotation parent) {
+    List<Annotation> annotations = new ArrayList<>();
+    Matcher m = pattern.matcher(parent.getText());
+
+    for (int prevEnd = 0; m.find(); prevEnd = m.end()) {
+      Annotation ann = parent.subAnnotation(prevEnd, m.start());
+      if (ann.length() == 0) continue;
+
+      ann.setType(parent.getType());
+      ann.setValues(parent.getValues());
+      ann.setPayload(parent.getPayload());
+      ann.setPriority(parent.getPriority());
+      annotations.add(ann);
+    }
+    return annotations;
   }
 
   public static String toDebugString(List<Annotation> annotations) {

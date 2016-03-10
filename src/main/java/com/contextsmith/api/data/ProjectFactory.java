@@ -28,19 +28,11 @@ public class ProjectFactory {
 
   static final Logger log = LogManager.getLogger(ProjectFactory.class);
 
-  //https://en.wikipedia.org/wiki/List_of_email_subject_abbreviations
+  // Reference: https://en.wikipedia.org/wiki/List_of_email_subject_abbreviations
    public static final Pattern REPLY_FORWARD_PREFIX_PAT =
-  //     Pattern.compile("^.*\\b(?i:re|r|fwd|fw|f):");
-  //     Pattern.compile("\\b(?i:re|r|fwd|fw|f):");
        Pattern.compile("(\\b(?i:re|r|fwd|fw|f):|\\[.*?\\])");
 
    public static final String DEFAULT_HASHING_ALGORITHM = "SHA-256";
-
-/*  public static ProjectFactory createNewInstance(
-      Collection<MimeMessage> messages) {
-    ProjectFactory factory = new ProjectFactory();
-    return factory.loadMessages(messages);
-  }*/
 
   public static String makeConversationId(String subject,
                                           String internalDomain) {
@@ -64,12 +56,10 @@ public class ProjectFactory {
 
   private EmailPeopleManager epManager;
   private EmailNameResolver enResolver;
-//  private EmailThreadResolver etResolver;
 
   public ProjectFactory() {
     this.epManager = new EmailPeopleManager();
     this.enResolver = new EmailNameResolver();
-    //    this.etResolver = new EmailThreadResolver();
   }
 
   public Project createProject(String internalDomain,
@@ -161,7 +151,6 @@ public class ProjectFactory {
   public ProjectFactory loadMessages(Collection<MimeMessage> messages) {
     this.epManager.loadMessages(messages);
     this.enResolver.loadMessages(messages);
-//    this.etResolver.loadMessages(messages);
     return this;
   }
 }

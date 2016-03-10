@@ -6,7 +6,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
+import com.contextsmith.utils.AnnotationUtil;
 import com.contextsmith.utils.FileUtil;
 
 import opennlp.tools.sentdetect.SentenceDetectorME;
@@ -17,6 +19,7 @@ public class SentenceAnnotator extends AbstractAnnotator {
 
 //  private static final Logger log = LogManager.getLogger(SentenceAnnotator.class);
   public static final String EN_SENTENCE_DETECTOR_MODEL = "en-sent.bin";
+  public static final Pattern DOUBLE_NEW_LINES = Pattern.compile("(\r?\n){2,}");
   private static SentenceAnnotator instance = null;
 
   public static synchronized SentenceAnnotator getInstance() {
@@ -53,12 +56,15 @@ public class SentenceAnnotator extends AbstractAnnotator {
 
   @Override
   protected List<Annotation> annotateCore(Annotation parent) {
-    Span[] spans = this.sentenceDetector.sentPosDetect(parent.getText());
     List<Annotation> annotations = new ArrayList<>();
-    for (Span span : spans) {
-      Annotation ann = parent.subAnnotation(span.getStart(), span.getEnd());
-      ann.setType(super.getAnnotatorType());
-      annotations.add(ann);
+    List<Annotation> lines = AnnotationUtil.split(DOUBLE_NEW_LINES, parent);
+    for (Annotation line : lines) {
+      Span[] spans = this.sentenceDetector.sentPosDetect(line.getText());
+      for (Span span : spans) {
+        Annotation ann = line.subAnnotation(span.getStart(), span.getEnd());
+        ann.setType(super.getAnnotatorType());
+        annotations.add(ann);
+      }
     }
     return annotations;
   }

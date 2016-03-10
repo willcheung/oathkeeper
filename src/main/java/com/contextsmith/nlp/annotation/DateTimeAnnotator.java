@@ -1,12 +1,11 @@
 package com.contextsmith.nlp.annotation;
 
+import java.lang.reflect.Field;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.TimeZone;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import com.joestelmach.natty.CalendarSource;
 import com.joestelmach.natty.DateGroup;
@@ -14,14 +13,11 @@ import com.joestelmach.natty.Parser;
 
 public class DateTimeAnnotator extends AbstractAnnotator {
 
-  private static final Logger log = LogManager.getLogger(DateTimeAnnotator.class);
-  private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getDefault();
+//  private static final Logger log = LogManager.getLogger(DateTimeAnnotator.class);
   private static DateTimeAnnotator instance = null;
 
   public static synchronized DateTimeAnnotator getInstance() {
-    if (instance == null) {
-      instance = new DateTimeAnnotator();
-    }
+    if (instance == null) instance = new DateTimeAnnotator();
     return instance;
   }
 
@@ -51,24 +47,33 @@ public class DateTimeAnnotator extends AbstractAnnotator {
   private Parser parser;
 
   public DateTimeAnnotator() {
-    this(DEFAULT_TIME_ZONE);
-  }
-
-  public DateTimeAnnotator(TimeZone timezone) {
     super(DateTimeAnnotator.class.getSimpleName());
-    log.info("Initializing date-time parser using default timezone: {}",
-             timezone.getDisplayName());
-    this.parser = new Parser(timezone);
+    this.parser = new Parser();
   }
 
-  public List<Annotation> annotate(Annotation parent, Date baseDate) {
+  public List<Annotation> annotate(Annotation parent, ZonedDateTime baseDate) {
     super.beforeAnnotateCore(parent.getText());
     List<Annotation> annotations = annotateCore(parent, baseDate);
     return super.afterAnnotateCore(annotations);
   }
 
-  public List<Annotation> annotate(String text, Date baseDate) {
+  public List<Annotation> annotate(String text, ZonedDateTime baseDate) {
     return annotate(new Annotation(text), baseDate);
+  }
+
+  public void setParserTimeZone(TimeZone timezone) {
+    Field field = null;
+    try {
+      field = Parser.class.getDeclaredField("_defaultTimeZone");
+    } catch (NoSuchFieldException | SecurityException e) {
+      e.printStackTrace();
+    }
+    field.setAccessible(true);
+    try {
+      field.set(this.parser, timezone);
+    } catch (IllegalArgumentException | IllegalAccessException e) {
+      e.printStackTrace();
+    }
   }
 
   @Override
@@ -76,14 +81,24 @@ public class DateTimeAnnotator extends AbstractAnnotator {
     return annotateCore(parent, null);
   }
 
-  private List<Annotation> annotateCore(Annotation parent, Date baseDate) {
-    if (baseDate == null) baseDate = new Date();  // Current date.
+  private List<Annotation> annotateCore(Annotation parent,
+                                        ZonedDateTime baseDate) {
     List<DateGroup> groups = null;
 
+    // If baseDate is null, use current date.
+    Date instant = (baseDate == null) ?
+        new Date() : Date.from(baseDate.toInstant());
+
+    // If timeZone is null, use JVM's default time-zone.
+    TimeZone timeZone = (baseDate == null) ?
+        TimeZone.getDefault() : TimeZone.getTimeZone(baseDate.getZone());
+
     synchronized(this.parser) {
-      CalendarSource.setBaseDate(baseDate);  // Thread-specific.
+      CalendarSource.setBaseDate(instant);  // Thread-specific.
+      setParserTimeZone(timeZone);
       groups = this.parser.parse(parent.getText());
     }
+
     List<Annotation> annotations = new ArrayList<>();
     if (groups == null) return annotations;
 

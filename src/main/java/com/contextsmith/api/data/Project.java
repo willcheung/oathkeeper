@@ -24,8 +24,6 @@ public class Project implements Comparable<Project> {
   private Set<InternetAddress> newExternalMembers;
 
   public Project() {
-//  public Project(String projectId) {
-//    this.projectId = projectId;
     this.lastSentDate = null;
     this.topExternalMemberName = null;
     this.topExternalMemberDomain = null;

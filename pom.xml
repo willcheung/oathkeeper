@@ -211,11 +211,11 @@
       <artifactId>chronicle-map</artifactId>
       <version>2.3.9</version>
     </dependency> -->
-    <dependency>
+    <!-- <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-simple</artifactId>
       <version>1.7.13</version>
-    </dependency>
+    </dependency> -->
     <!-- <dependency>
       <groupId>it.unimi.dsi</groupId>
       <artifactId>dsiutils</artifactId>
@@ -231,6 +231,11 @@
       <artifactId>prettytime-nlp</artifactId>
       <version>4.0.1.Final</version>
     </dependency> -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <version>2.5</version>
+    </dependency>
     <dependency>
       <groupId>com.joestelmach</groupId>
       <artifactId>natty</artifactId>

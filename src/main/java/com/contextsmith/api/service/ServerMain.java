@@ -5,39 +5,51 @@ import java.util.EnumSet;
 import javax.servlet.DispatcherType;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.FilterHolder;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.mortbay.servlet.GzipFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import com.contextsmith.utils.ProcessUtil;
 
-public class ServerMain {
+import uk.org.lidalia.sysoutslf4j.context.SysOutOverSLF4J;
 
-  static final Logger log = LogManager.getLogger(ServerMain.class);
+public class ServerMain {
+  private static final Logger log = LoggerFactory.getLogger(ServerMain.class);
 
   public static void main(String[] args) throws Exception {
-    Integer port = getPortOrDie(args);
+    int port = getPortOrDie(args);
+    sendJavaUtilLoggerToSLF4J();
+    SysOutOverSLF4J.sendSystemOutAndErrToSLF4J();
 
-    ServletContextHandler context = new ServletContextHandler(
-        ServletContextHandler.SESSIONS);
-    context.setContextPath("/");
+    ServletContextHandler contextHandler = new ServletContextHandler(
+        ServletContextHandler.NO_SESSIONS);
+    contextHandler.setContextPath("/");
 
     // Add Gzip compression capability.
     FilterHolder holder = new FilterHolder(GzipFilter.class);
     holder.setInitParameter("deflateCompressionLevel", "9");
     holder.setInitParameter("minGzipSize", "0");
     holder.setInitParameter("mimeTypes", "application/json");
-    context.addFilter(holder, "/*", EnumSet.of(DispatcherType.REQUEST));
+    contextHandler.addFilter(holder, "/*", EnumSet.of(DispatcherType.REQUEST));
+
+//    HandlerList handlers = new HandlerList();
+//    RequestLogHandler requestLogHandler = new RequestLogHandler();
+//    requestLogHandler.setRequestLog(new NCSARequestLog());
+//    handlers.addHandler(requestLogHandler);
 
     Server server = new Server(port);
     log.info("Server started listening on port {}", port);
-    server.setHandler(context);
 
-    ServletHolder servlet = context.addServlet(
+//    handlers.addHandler((Handler) contextHandler);
+//    handlers.addHandler(requestLogHandler);
+    server.setHandler(contextHandler);
+
+    ServletHolder servlet = contextHandler.addServlet(
         org.glassfish.jersey.servlet.ServletContainer.class, "/*");
     servlet.setInitOrder(0);
 
@@ -74,5 +86,19 @@ public class ServerMain {
                     + "(dev: 8888, release: 8889)");
     }
     return port;
+  }
+
+  private static void sendJavaUtilLoggerToSLF4J() {
+    java.util.logging.LogManager.getLogManager().reset();
+
+    // Optionally remove existing handlers attached to j.u.l root logger
+    SLF4JBridgeHandler.removeHandlersForRootLogger();  // (since SLF4J 1.6.5)
+
+    // add SLF4JBridgeHandler to j.u.l's root logger, should be done once during
+    // the initialization phase of your application
+    SLF4JBridgeHandler.install();
+
+    java.util.logging.Logger.getLogger("global").setLevel(
+        java.util.logging.Level.FINEST);
   }
 }

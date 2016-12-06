@@ -2,6 +2,7 @@ package com.contextsmith.utils;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.UnsupportedEncodingException;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -10,13 +11,13 @@ import javax.mail.internet.InternetAddress;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.validator.routines.EmailValidator;
+import org.apache.logging.log4j.util.Strings;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
 
 public class InternetAddressUtil {
-
   public static final Set<String> COMMON_WEBMAIL_DOMAIN = Sets.newHashSet(
       "gmail.com",
       "yahoo.com",
@@ -91,6 +92,18 @@ public class InternetAddressUtil {
     try {
       return new InternetAddress(address);
     } catch (AddressException e) {
+      return null;
+    }
+  }
+
+  public static InternetAddress newIAddress(String address, String personal) {
+    try {
+      if (Strings.isBlank(personal)) {
+        return new InternetAddress(address);
+      } else {
+        return new InternetAddress(address, personal);
+      }
+    } catch (UnsupportedEncodingException | AddressException e) {
       return null;
     }
   }

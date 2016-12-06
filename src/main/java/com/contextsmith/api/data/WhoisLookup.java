@@ -11,15 +11,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.net.whois.WhoisClient;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Multisets;
 
 public class WhoisLookup {
-  static final Logger log = LogManager.getLogger(WhoisLookup.class);
+  private static final Logger log = LoggerFactory.getLogger(WhoisLookup.class);
 
   public static final String WHOIS_SERVER_FIELD = "Whois Server";
   public static final String WHOIS_REG_ORG_FIELD = "Registrant Organization";
@@ -131,7 +131,7 @@ public class WhoisLookup {
       log.debug("Querying Whois server ({}) for query: {}", whoisServer, query);
       response = whois.query(query);
     } catch (IOException e) {
-      log.error(e);
+      log.error(e.toString());
     } finally {
       log.trace("Disconnecting from Whois server: {}", whoisServer);
       try { whois.disconnect(); }

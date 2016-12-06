@@ -12,11 +12,11 @@ import javax.mail.internet.InternetAddress;
 import com.contextsmith.utils.InternetAddressUtil;
 
 public class Project implements Comparable<Project> {
-
   private Date lastSentDate;
   private String projectId;
   private String topExternalMemberName;
   private String topExternalMemberDomain;
+  private String searchPattern;
 
   private List<Conversation> conversations;
   private Set<InternetAddress> internalMembers;
@@ -27,6 +27,7 @@ public class Project implements Comparable<Project> {
     this.lastSentDate = null;
     this.topExternalMemberName = null;
     this.topExternalMemberDomain = null;
+    this.searchPattern = null;
 
     this.conversations = new ArrayList<>();
     this.externalMembers = new HashSet<>();
@@ -38,7 +39,7 @@ public class Project implements Comparable<Project> {
     return this.conversations.add(conversation);
   }
 
-  public void addExternalMembers(Set<InternetAddress> members,
+  /*public void addExternalMembers(Set<InternetAddress> members,
                                  boolean resolveProjectName) {
     this.externalMembers.addAll(members);
     this.topExternalMemberDomain =
@@ -48,6 +49,12 @@ public class Project implements Comparable<Project> {
       this.topExternalMemberName =
           WhoisLookup.lookupRegistrantOrganization(this.topExternalMemberDomain);
     }
+  }*/
+
+  public void addExternalMembers(Set<InternetAddress> members) {
+    this.externalMembers.addAll(members);
+    this.topExternalMemberDomain =
+        InternetAddressUtil.findMostFrequentDomain(members);
   }
 
   public void addInternalMembers(Set<InternetAddress> members) {
@@ -90,12 +97,20 @@ public class Project implements Comparable<Project> {
     return this.projectId;
   }
 
+  public String getSearchPattern() {
+    return this.searchPattern;
+  }
+
   public String getTopExternalMemberDomain() {
     return this.topExternalMemberDomain;
   }
 
   public String getTopExternalMemberName() {
     return this.topExternalMemberName;
+  }
+
+  public void setSearchPattern(String searchPattern) {
+    this.searchPattern = searchPattern;
   }
 
   // Sort conversations by sent-date in ascending order (oldest first).

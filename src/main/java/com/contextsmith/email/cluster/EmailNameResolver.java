@@ -2,7 +2,6 @@ package com.contextsmith.email.cluster;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -11,18 +10,19 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import com.contextsmith.utils.EventUtil;
 import com.contextsmith.utils.MimeMessageUtil;
+import com.google.api.services.calendar.model.Event;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
 
 import jersey.repackaged.com.google.common.collect.Sets;
 
 public class EmailNameResolver {
-
-  static final Logger log = LogManager.getLogger(EmailNameResolver.class);
+  private static final Logger log = LoggerFactory.getLogger(EmailNameResolver.class);
 
   public static String normalizePersonalName(String name) {
     // Remove parenthesized substrings.
@@ -61,7 +61,18 @@ public class EmailNameResolver {
     return nameDist.getCommonName();
   }
 
-  public void loadMessages(Iterable<MimeMessage> messages) {
+  public void loadEvents(Iterable<Event> events) {
+    for (Event event : events) {
+      Set<InternetAddress> recipients = Sets.union(
+          EventUtil.getOrganizer(event),
+          EventUtil.getAttendees(event));
+      for (InternetAddress address : recipients) {
+        this.putAddress(address);
+      }
+    }
+  }
+
+  public void loadMimeMessages(Iterable<MimeMessage> messages) {
     for (MimeMessage message : messages) {
       Set<InternetAddress> recipients = Sets.union(
           MimeMessageUtil.getValidRecipients(message),
@@ -86,23 +97,29 @@ public class EmailNameResolver {
     nameDist.add(normalizePersonalName(personal));
   }
 
-  public void resolve(Collection<InternetAddress> addresses) {
-    for (InternetAddress address : addresses) {
-      this.resolve(address);
-    }
+  public void reset() {
+    this.emailNameDistMap.clear();
   }
 
-  public void resolve(InternetAddress address) {
+  public InternetAddress resolve(InternetAddress address) {
     String email = address.getAddress();
-    if (StringUtils.isBlank(email)) return;
+    if (StringUtils.isBlank(email)) return address;
     String commonName = this.getCommonName(email);
-    if (StringUtils.isBlank(commonName)) return;
+    if (StringUtils.isBlank(commonName)) return address;
     try {
       address.setPersonal(commonName, StandardCharsets.UTF_8.name());
     } catch (UnsupportedEncodingException e) {
-      log.error(e);
+      log.error(e.toString());
       e.printStackTrace();
     }
+    return address;
+  }
+
+  public Set<InternetAddress> resolve(Set<InternetAddress> addresses) {
+    for (InternetAddress address : addresses) {
+      this.resolve(address);
+    }
+    return addresses;
   }
 }
 

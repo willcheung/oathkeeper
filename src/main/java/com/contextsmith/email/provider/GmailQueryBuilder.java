@@ -11,6 +11,7 @@ import org.apache.commons.lang3.StringUtils;
 
 public class GmailQueryBuilder {
 
+  private static final String NO_DRAFT_QUERY = "-label:draft";
   private StringBuffer queryBuffer;
 
   public GmailQueryBuilder() {
@@ -53,7 +54,7 @@ public class GmailQueryBuilder {
                        address.getAddress(), address.getAddress()));
       }
     }
-    addQuery(String.format("(%s) -label:draft", builder.toString()));
+    addQuery(String.format("(%s)", builder.toString()));
     return this;
   }
 
@@ -66,6 +67,7 @@ public class GmailQueryBuilder {
 
   // Note: this will reset the query buffer.
   public String build() {
+    addQuery(NO_DRAFT_QUERY);  // Never retrieve emails from user's draft folder.
     String query = this.queryBuffer.toString();
     this.queryBuffer.setLength(0);
     return query;

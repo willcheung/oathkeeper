@@ -10,14 +10,13 @@ import java.util.Set;
 import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.contextsmith.utils.MimeMessageUtil;
 
 public class EmailThreadResolver {
-
-  static final Logger log = LogManager.getLogger(EmailThreadResolver.class);
+  private static final Logger log = LoggerFactory.getLogger(EmailThreadResolver.class);
 
   private Map<String, String> msgIdToRootMap;
   private Set<String> messageIds;

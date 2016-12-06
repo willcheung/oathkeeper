@@ -15,16 +15,14 @@ import java.util.List;
 import java.util.Properties;
 import java.util.zip.GZIPInputStream;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.io.CharSource;
 import com.google.common.io.CharStreams;
 
 public class FileUtil {
-
-  static final Logger log = LogManager.getLogger(FileUtil.class);
-
+  private static final Logger log = LoggerFactory.getLogger(FileUtil.class);
   public static final String COMPRESSED_FILE_RE = ".+?\\.(gz|gzip|zip)";
 
   public static CharSource findResourceAsCharSource(String filename)
@@ -124,7 +122,7 @@ public class FileUtil {
           new GZIPInputStream(new FileInputStream(filename)),
           StandardCharsets.UTF_8));
     } catch (IOException e) {
-      log.error(e);
+      log.error(e.toString());
       e.printStackTrace();
     }
     return content;

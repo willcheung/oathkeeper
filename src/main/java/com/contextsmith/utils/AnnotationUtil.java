@@ -12,10 +12,9 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.apache.commons.lang3.StringUtils;
 
-import com.contextsmith.nlp.annotation.Annotation;
+import com.contextsmith.nlp.annotator.Annotation;
 import com.google.common.base.Strings;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
@@ -23,8 +22,7 @@ import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
 
 public class AnnotationUtil {
-
-  static final Logger log = LogManager.getLogger(AnnotationUtil.class.getName());
+//  private static final Logger log = LoggerFactory.getLogger(AnnotationUtil.class);
 
   /**
    * Concatenate annotations separated by "sep",
@@ -107,6 +105,28 @@ public class AnnotationUtil {
       rangeAnnMap.put(annotation.getRange(), annotation);
     }
     return rangeAnnMap;
+  }
+
+  // Returns annotations in 'parent' matched by 'pattern'.
+  public static List<Annotation> match(Pattern pattern, Annotation parent) {
+    List<Annotation> annotations = new ArrayList<>();
+    Matcher m = pattern.matcher(parent.getText());
+
+    while (m.find()) {
+      Annotation ann = parent.subAnnotation(m.start(), m.end());
+      if (ann.length() == 0) continue;
+
+      ann.setType(parent.getType());
+      ann.setValues(parent.getValues());
+      ann.setPayload(parent.getPayload());
+      ann.setPriority(parent.getPriority());
+      annotations.add(ann);
+    }
+    return annotations;
+  }
+
+  public static List<Annotation> match(Pattern pattern, String text) {
+    return match(pattern, new Annotation(text));
   }
 
   /**
@@ -201,11 +221,13 @@ public class AnnotationUtil {
     });
   }
 
+  // Returns annotations in 'parent' NOT matched by 'pattern'.
   public static List<Annotation> split(Pattern pattern, Annotation parent) {
     List<Annotation> annotations = new ArrayList<>();
     Matcher m = pattern.matcher(parent.getText());
+    int prevEnd = 0;
 
-    for (int prevEnd = 0; m.find(); prevEnd = m.end()) {
+    for (; m.find(); prevEnd = m.end()) {
       Annotation ann = parent.subAnnotation(prevEnd, m.start());
       if (ann.length() == 0) continue;
 
@@ -213,6 +235,12 @@ public class AnnotationUtil {
       ann.setValues(parent.getValues());
       ann.setPayload(parent.getPayload());
       ann.setPriority(parent.getPriority());
+      annotations.add(ann);
+    }
+
+    // Remember to add the last segment.
+    if (prevEnd < parent.getText().length()) {
+      Annotation ann = parent.subAnnotation(prevEnd, parent.getText().length());
       annotations.add(ann);
     }
     return annotations;
@@ -225,6 +253,24 @@ public class AnnotationUtil {
     }
     builder.append(Strings.repeat("-", 80));
     return builder.toString();
+  }
+
+  public static Set<String> uniqueText(List<Annotation> annotations) {
+    Set<String> unique = new HashSet<>();
+    for (Annotation ann: annotations) {
+      if (StringUtils.isNotBlank(ann.getText())) {
+        unique.add(ann.getText());
+      }
+    }
+    return unique;
+  }
+
+  public static boolean isOverlapWithAny(Annotation needle,
+                                         List<Annotation> haystack) {
+    for (Annotation ann : haystack) {
+      if (needle.isOverlap(ann)) return true;
+    }
+    return false;
   }
 
 /*  public static void mergeConsecutiveSpans(List<Annotation> left,

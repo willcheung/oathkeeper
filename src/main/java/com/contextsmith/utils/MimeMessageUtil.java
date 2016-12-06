@@ -6,6 +6,8 @@ import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.TemporalAccessor;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -25,24 +27,25 @@ import javax.mail.internet.MimeMessage;
 import javax.ws.rs.core.MediaType;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.safety.Whitelist;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.sun.mail.util.DecodingException;
 
+import jersey.repackaged.com.google.common.collect.Sets;
+
 public class MimeMessageUtil {
 
   public enum AddressField { FROM, REPLY_TO, TO, CC, BCC, ANY_RECIPIENT }
 
-  static final Logger log = LogManager.getLogger(MimeMessageUtil.class);
+  private static final Logger log = LoggerFactory.getLogger(MimeMessageUtil.class);
 
   public static final String SENT_DATE_HEADER = "Date";
   public static final String MIME_MESSAGE_ID_HEADER = "Message-ID";
@@ -50,21 +53,73 @@ public class MimeMessageUtil {
   public static final String REFERENCES_HEADER = "References";
   public static final String SOURCE_INBOX_HEADER = "Source-Inbox";
   public static final String DELIVERED_TO_HEADER = "Delivered-To";
-  public static final String X_RECEIVED_HEADER = "X-Received";
+//  public static final String X_RECEIVED_HEADER = "X-Received";
   public static final String RETURN_PATH_HEADER = "Return-Path";
-  public static final String IN_REPLY_TO_HEADER = "In-Reply-To";
+//  public static final String IN_REPLY_TO_HEADER = "In-Reply-To";
   public static final String GMAIL_THREAD_ID_HEADER = "Gmail-Thread-Id";
   public static final String GMAIL_MESSAGE_ID_HEADER = "Gmail-Message-Id";
 
   // Mime types.
+  public static final String MIME_TYPE_HEADER_SUFFIX = "-content";
   public static final String TEXT_CALENDAR_TYPE = "text/calendar";
+  public static final Set<String> RELEVANT_MIME_TYPES = Sets.newHashSet(
+      MediaType.TEXT_PLAIN,
+      MediaType.TEXT_HTML,
+      TEXT_CALENDAR_TYPE
+  );
 
   // Used to parse dates
   public static final DateTimeFormatter MAIL_DATE_FORMATTER =
-      DateTimeFormatter.ofPattern("EEE, d MMM yyyy HH:mm:ss Z", Locale.US);
+      DateTimeFormatter.ofPattern("d MMM yyyy HH:mm:ss Z", Locale.US);
+//      DateTimeFormatter.ofPattern("EEE, d MMM yyyy HH:mm:ss Z", Locale.US);
 
-  public static void collectPartsRecursively(
-      Part message, Multimap<String, String> multimap)
+  // Reference: https://en.wikipedia.org/wiki/List_of_email_subject_abbreviations
+  public static final Pattern REPLY_FORWARD_PREFIX_PAT =
+       Pattern.compile("(\\b(?i:re|r|fwd|fw|f):|\\[.*?\\])");
+
+  public static Multimap<String, String> collectPartsRecursively(
+      MimeMessage message) {
+    Multimap<String, String> multimap = ArrayListMultimap.create();
+    /*try {
+      collectPartsRecursively(message, multimap);
+    } catch (IOException | MessagingException e) {
+      e.printStackTrace();
+    }*/
+
+    // Retrieve content from message header first.
+    for (String mimeType : RELEVANT_MIME_TYPES) {
+      String header = mimeType + MIME_TYPE_HEADER_SUFFIX;
+      String[] contents = null;
+      try { contents = message.getHeader(header); }
+      catch (MessagingException e) { continue; }
+
+      if (contents != null && contents.length > 0) {
+        for (String content : contents) {
+          multimap.put(mimeType, content);
+        }
+      }
+    }
+    if (!multimap.isEmpty()) return multimap;
+
+    // At this point, no content was found in message header;
+    // so we parse from the message parts.
+    try { collectPartsRecursively(message, multimap); }
+    catch (IOException | MessagingException e) {}
+
+    // If found content from message parts, store them into the header.
+    for (String key : multimap.keySet()) {
+      for (String value : multimap.get(key)) {
+        try { message.addHeader(key + MIME_TYPE_HEADER_SUFFIX, value); }
+        catch (MessagingException e) {}
+      }
+    }
+
+    return multimap;
+  }
+
+  /*public static void collectPartsRecursively(
+      Part message,
+      Multimap<String, String> multimap)
       throws IOException, MessagingException {
     Object contentObject = null;
     try { contentObject = message.getContent(); }
@@ -81,25 +136,16 @@ public class MimeMessageUtil {
       log.trace("MimeMessage contains: " + MediaType.TEXT_PLAIN);
       String s = contentToString(contentObject);
       if (StringUtils.isNotBlank(s)) multimap.put(MediaType.TEXT_PLAIN, s.trim());
-
     } else if (message.isMimeType(MediaType.TEXT_HTML)) {
       log.trace("MimeMessage contains: " + MediaType.TEXT_HTML);
       String s = contentToString(contentObject);
       if (StringUtils.isNotBlank(s)) multimap.put(MediaType.TEXT_HTML, s.trim());
-
     } else if (message.isMimeType(TEXT_CALENDAR_TYPE)) {
       log.trace("MimeMessage contains: " + TEXT_CALENDAR_TYPE);
       String s = contentToString(contentObject);
       if (StringUtils.isNotBlank(s)) multimap.put(TEXT_CALENDAR_TYPE, s.trim());
-
-    } /*else if (contentObject instanceof String) {  // A simple text message
-      String text = (String) contentObject;
-      log.trace("string: {}", text);
-      // Check if this text contains HTML tags.
-      if (isHtml(text)) result.put(TEXT_HTML_TYPE, text);
-      else result.put(TEXT_PLAIN_TYPE, text);
-    }*/
-  }
+    }
+  }*/
 
   public static String contentToString(Object obj) {
     if (obj instanceof InputStream) {
@@ -142,10 +188,9 @@ public class MimeMessageUtil {
 
   public static String extractPlainText(MimeMessage message)
       throws IOException, MessagingException {
-    ListMultimap<String, String> multimap = ArrayListMultimap.create();
-    collectPartsRecursively(message, multimap);
-
+    Multimap<String, String> multimap = collectPartsRecursively(message);
     StringBuilder builder = new StringBuilder();
+
     for (String plain : multimap.get(MediaType.TEXT_PLAIN)) {
       if (StringUtils.isNotBlank(plain)) {
         log.trace("Found plain text: {}", plain);
@@ -163,6 +208,19 @@ public class MimeMessageUtil {
       }
     }
     return builder.toString();
+  }
+
+  public static void filterByDateRange(List<MimeMessage> messages,
+                                       Date startSentDate, Date endSentDate) {
+    for (Iterator<MimeMessage> iter = messages.iterator(); iter.hasNext();) {
+      MimeMessage message = iter.next();
+      Date sentDate;
+      try { sentDate = message.getSentDate(); }
+      catch (MessagingException e) { continue; }
+      if (sentDate.before(startSentDate) || sentDate.after(endSentDate)) {
+        iter.remove();
+      }
+    }
   }
 
   /*public static String extractHtmlText(MimeMessage message)
@@ -239,19 +297,6 @@ public class MimeMessageUtil {
     return plainText;
   }*/
 
-  public static void filterByDateRange(List<MimeMessage> messages,
-                                       Date startSentDate, Date endSentDate) {
-    for (Iterator<MimeMessage> iter = messages.iterator(); iter.hasNext();) {
-      MimeMessage message = iter.next();
-      Date sentDate;
-      try { sentDate = message.getSentDate(); }
-      catch (MessagingException e) { continue; }
-      if (sentDate.before(startSentDate) || sentDate.after(endSentDate)) {
-        iter.remove();
-      }
-    }
-  }
-
   public static InternetAddress getDeliveredTo(MimeMessage message) {
     String address = getFirstHeader(message, DELIVERED_TO_HEADER);
     if (StringUtils.isNotBlank(address)) {
@@ -272,22 +317,22 @@ public class MimeMessageUtil {
     return getFirstHeader(message, GMAIL_MESSAGE_ID_HEADER);
   }
 
+  public static String getGmailThreadId(MimeMessage message) {
+    return getFirstHeader(message, GMAIL_THREAD_ID_HEADER);
+  }
+
   public static String[] getListUnsubscribe(MimeMessage message) {
     String value = getFirstHeader(message, LIST_UNSUBSCRIBE_HEADER);
     return (value == null) ? null : value.split("\\s+");
   }
 
   public static String getMessageId(MimeMessage message) {
-    return getFirstHeader(message, MIME_MESSAGE_ID_HEADER);
+    try {
+      return message.getMessageID();
+    } catch (MessagingException e) {
+      return null;
+    }
   }
-
-  /*public static String getGmailMessageId(MimeMessage message) {
-    return getFirstHeader(message, MimeMessageUtil.GMAIL_MESSAGE_ID_HEADER);
-  }
-
-  public static String getGmailThreadId(MimeMessage message) {
-    return getFirstHeader(message, MimeMessageUtil.GMAIL_THREAD_ID_HEADER);
-  }*/
 
   public static String[] getReferences(MimeMessage message) {
     String value = getFirstHeader(message, REFERENCES_HEADER);
@@ -298,16 +343,43 @@ public class MimeMessageUtil {
       throws MessagingException {
     String mailDateStr = getFirstHeader(message, SENT_DATE_HEADER);
     if (mailDateStr == null) return null;
-    return ZonedDateTime.from(MAIL_DATE_FORMATTER.parse(mailDateStr));
+
+    // Remove beginning day-of-week strings (Mon, Tue, Wed, Thu, Fri, Sat, Sun)
+    mailDateStr = mailDateStr.replaceAll("^[MTWFS][ouehra][neduit], ", "").trim();
+
+    // Remove trailing zone name in parenthesis.
+    mailDateStr = mailDateStr.replaceAll("\\([^()]+\\)$", "").trim();
+
+    TemporalAccessor ta = null;
+    try {
+      ta = MAIL_DATE_FORMATTER.parse(mailDateStr);
+    } catch (DateTimeParseException e) {
+      log.error("Error parsing date time: {}", mailDateStr);
+      return null;
+    }
+    return ZonedDateTime.from(ta);
   }
+
+  /*public static String getGmailMessageId(MimeMessage message) {
+    return getFirstHeader(message, MimeMessageUtil.GMAIL_MESSAGE_ID_HEADER);
+  }
+
+  public static String getGmailThreadId(MimeMessage message) {
+    return getFirstHeader(message, MimeMessageUtil.GMAIL_THREAD_ID_HEADER);
+  }*/
 
   public static String[] getSourceInboxes(MimeMessage message) {
     try {
       return message.getHeader(SOURCE_INBOX_HEADER);
     } catch (MessagingException e) {
-      log.error(e);
+      log.error(e.toString());
     }
     return null;
+  }
+
+  public static String getSubject(MimeMessage message) {
+    try { return message.getSubject(); }
+    catch (MessagingException e) { return null; }
   }
 
   public static Set<InternetAddress> getValidAddresses(MimeMessage message,
@@ -326,7 +398,7 @@ public class MimeMessageUtil {
     } catch (AddressException e) {
       // ignore
     } catch (MessagingException e) {
-      log.error(e);
+      log.error(e.toString());
     }
 
     Set<InternetAddress> results = new HashSet<>();
@@ -385,6 +457,7 @@ public class MimeMessageUtil {
     return Pattern.compile("</\\w+>").matcher(text).find();
   }
 
+  // Check if this email is a sent email, instead of a received email.
   public static boolean isSentGmail(MimeMessage message) {
     if (existHeader(message, RETURN_PATH_HEADER)) return false;
 
@@ -397,6 +470,14 @@ public class MimeMessageUtil {
     return sender.equals(deliveredTo);
   }
 
+  public static String normalizeSubject(String subject) {
+    return REPLY_FORWARD_PREFIX_PAT
+        .matcher(subject)
+        .replaceAll(" ")
+        .replaceAll("\\s+", " ")
+        .trim();
+  }
+
   // For debugging purpose.
   public static final void printMimeMessage(MimeMessage message)
       throws MessagingException {
@@ -405,5 +486,34 @@ public class MimeMessageUtil {
     log.info("To: " + gson.toJson(message.getAllRecipients()));
     log.info("Subject: " + message.getSubject());
     log.info("==================");
+  }
+
+  private static void collectPartsRecursively(
+      Part message,
+      Multimap<String, String> multimap)
+      throws IOException, MessagingException {
+    Object contentObject = null;
+    try { contentObject = message.getContent(); }
+    catch (DecodingException e) {}
+
+    if (contentObject instanceof Multipart) {
+      log.trace("MimeMessage contains: multipart");
+      Multipart parts = (Multipart) contentObject;
+      for (int i = 0; i < parts.getCount(); i++) {
+        // Recursive calls.
+        collectPartsRecursively(parts.getBodyPart(i), multimap);
+      }
+      return;
+    }
+    for (String mimeType : RELEVANT_MIME_TYPES) {
+      if (message.isMimeType(mimeType)) {
+        log.trace("MimeMessage contains: " + mimeType);
+        String s = contentToString(contentObject);
+        if (StringUtils.isNotBlank(s)) {
+          multimap.put(mimeType, s.trim());
+        }
+        break;  // We assume a message can only belong to one mime-type.
+      }
+    }
   }
 }

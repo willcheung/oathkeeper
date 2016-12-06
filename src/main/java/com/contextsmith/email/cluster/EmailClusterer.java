@@ -14,8 +14,8 @@ import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.collections15.Transformer;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.contextsmith.api.service.TokenEmailPair;
 import com.contextsmith.email.provider.EmailFilterer;
@@ -28,47 +28,13 @@ import edu.uci.ics.jung.graph.SparseGraph;
 import edu.uci.ics.jung.graph.util.EdgeType;
 
 public class EmailClusterer {
-
-  public static final Logger log = LogManager.getLogger(EmailClusterer.class);
+  private static final Logger log = LoggerFactory.getLogger(EmailClusterer.class);
 
   // Graph-related constants.
   public static final int MIN_RECIPIENTS_PER_EMAIL_IN_GRAPH = 2;
   public static final int MIN_NODE_DEGREE_TO_KEEP_IN_GRAPH = 2;
   public static final int MIN_CLUSTER_SIZE_TO_OUTPUT = 2;
-//  public static final boolean IS_FILTER_ADDITIONAL_NODES = false;
   public static final String EDGE_ID_PREFIX = "MAILED";
-
-  /*public static void addInternalMembers(
-      List<MimeMessage> messages,
-      Set<Set<InternetAddress>> externalClusters,
-      Set<InternetAddress> userAddresses,
-      String internalDomain,
-      D3Object d3Object) {
-
-    // Construct a graph that includes external and internal employee's e-mails,
-    // but excludes nodes of owner's email aliases.
-    Graph<InternetAddress, String> graph =
-        buildGraph(messages, userAddresses, null);
-
-    for (Set<InternetAddress> cluster : externalClusters) {
-      Set<InternetAddress> tempCluster = new HashSet<>(cluster);
-
-      for (InternetAddress externalAddr : tempCluster) {
-        Collection<InternetAddress> neighborAddrs =
-            graph.getNeighbors(externalAddr);
-        if (neighborAddrs == null) continue;
-
-        for (InternetAddress address : neighborAddrs) {
-          // Make sure the email address has the 'internal domain'.
-          if (MessageUtil.hasDomain(address, internalDomain)) {
-            cluster.add(address);  // Add only internal address to external cluster.
-          }
-        }
-      }
-    }
-    if (d3Object == null) return;
-
-  }*/
 
   public static Graph<InternetAddress, String> buildGraph(
       Collection<MimeMessage> messages) {
@@ -81,23 +47,17 @@ public class EmailClusterer {
       String domainToIgnore) {
 
     Graph<InternetAddress, String> graph = new SparseGraph<>();
-//    Map<InternetAddress, InternetAddress> vertexIdentityMap = new HashMap<>();
     int edgeCount = 0;
 
     for (MimeMessage message : messages) {
       // Filter recipient.
       Set<InternetAddress> recipients = MimeMessageUtil.getValidRecipients(message);
-//      InternetAddressUtil.filterInvalidAddresses(recipients, addressesToIgnore,
-//                                                 domainToIgnore, true);
       if (recipients.size() < MIN_RECIPIENTS_PER_EMAIL_IN_GRAPH) {
         continue;
       }
-//      if (recipients.isEmpty()) continue;
 
       // Filter sender.
       Set<InternetAddress> senders = MimeMessageUtil.getValidSenders(message);
-      /*InternetAddressUtil.filterInvalidAddresses(senders, addressesToIgnore,
-                                                 domainToIgnore, true);*/
       // Must have only one sender.
       if (senders.size() != 1) continue;
       InternetAddress sender = senders.iterator().next();
@@ -117,20 +77,6 @@ public class EmailClusterer {
 
     return graph;
   }
-
-  // Returns all possible clusters, including both internal and external.
-  /*public static List<Set<InternetAddress>> findClustersIgnoringDomain(
-      List<MimeMessage> messages,
-      Set<InternetAddress> userAddressesToIgnore) {
-    checkNotNull(messages);
-    checkNotNull(userAddressesToIgnore);
-    if (userAddressesToIgnore.isEmpty()) return null;
-
-    Graph<InternetAddress, String> graph =
-        buildGraph(messages, userAddressesToIgnore, null);
-
-    return transformGraphToClusters(graph);
-  }*/
 
   // Returns only clusters containing external e-mail addresses.
   public static List<Set<InternetAddress>> findExternalClusters(
@@ -166,47 +112,13 @@ public class EmailClusterer {
     for (Iterator<Set<InternetAddress>> iter = clusters.iterator();
          iter.hasNext();) {
       Set<InternetAddress> cluster = iter.next();
-      if (cluster.size() < MIN_CLUSTER_SIZE_TO_OUTPUT) iter.remove();
+      if (cluster.size() < MIN_CLUSTER_SIZE_TO_OUTPUT) {
+        log.trace("Ignoring single-person cluster: {}", cluster);
+        iter.remove();
+      }
     }
     return clusters;
   }
-
-  /*public static List<Set<InternetAddress>> findInternalClusters(
-      List<MimeMessage> messages,
-      String internalDomain,
-      List<Set<InternetAddress>> externalClusters) {
-
-    // Construct a graph that includes external and internal employee's e-mails,
-    // but excludes nodes of owner's email aliases.
-    Graph<InternetAddress, String> graph = buildGraph(messages, null, null);
-
-    List<Set<InternetAddress>> internalClusters =
-        new ArrayList<>(externalClusters.size());
-    // Initialize each index to an empty set.
-    for (int i = 0; i < externalClusters.size(); ++i) {
-      internalClusters.add(new HashSet<InternetAddress>());
-    }
-
-    for (int i = 0; i < externalClusters.size(); ++i) {
-      Set<InternetAddress> externalCluster = externalClusters.get(i);
-      Set<InternetAddress> internalCluster = internalClusters.get(i);
-
-      for (InternetAddress externalAddr : externalCluster) {
-        Collection<InternetAddress> neighborAddrs =
-            graph.getNeighbors(externalAddr);
-        if (neighborAddrs == null) continue;
-
-        for (InternetAddress address : neighborAddrs) {
-          // Make sure the email address has the 'internal domain'.
-          if (InternetAddressUtil.hasDomain(address, internalDomain)) {
-            // Add only internal address to external cluster.
-            internalCluster.add(address);
-          }
-        }
-      }
-    }
-    return internalClusters;
-  }*/
 
   // Returns vertices removed.
   private static Set<InternetAddress> filterVertices(
@@ -244,26 +156,4 @@ public class EmailClusterer {
     Set<Set<InternetAddress>> clusters = transformer.transform(graph);
     return new ArrayList<>(clusters);
   }
-
-  /*private static void updateEmptyName(
-      Map<InternetAddress, InternetAddress> vertexIdentityMap,
-      InternetAddress address) {
-    InternetAddress cached = vertexIdentityMap.get(address);
-    if (cached == null) {
-      vertexIdentityMap.put(address, address);
-      return;
-    }
-    String inputName = address.getPersonal();
-    if (Strings.isNullOrEmpty(inputName) || inputName.contains("@")) return;
-
-    String cachedName = cached.getPersonal();
-    if (Strings.isNullOrEmpty(cachedName)) {
-      try {
-        // Store the name that is more complete.
-        cached.setPersonal(inputName.trim());
-      } catch (UnsupportedEncodingException e) {
-        System.err.println(e);
-      }
-    }
-  }*/
 }

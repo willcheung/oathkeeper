@@ -13,15 +13,14 @@ import java.util.Set;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.contextsmith.email.cluster.AddressInfo.AddressType;
 import com.contextsmith.utils.MimeMessageUtil;
 
 public class UserEmailAnalyzer {
-
-  private static final Logger log = LogManager.getLogger(UserEmailAnalyzer.class);
+  private static final Logger log = LoggerFactory.getLogger(UserEmailAnalyzer.class);
 
   public static final int MAX_RECIPIENTS_PER_EMAIL = 1;
   public static final int MAX_ADDRESSES_TO_GUESS_FROM = 100;

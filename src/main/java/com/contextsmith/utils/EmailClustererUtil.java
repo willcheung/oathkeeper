@@ -15,16 +15,15 @@ import java.util.Set;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.contextsmith.email.cluster.EmailClusterer;
 
 import edu.uci.ics.jung.graph.Graph;
 
 public class EmailClustererUtil {
-
-  private static final Logger log = LogManager.getLogger(EmailClustererUtil.class);
+  private static final Logger log = LoggerFactory.getLogger(EmailClustererUtil.class);
 
   // Cluster-related constants.
   public static final int INTERNAL_CLUSTER_ID = 0;

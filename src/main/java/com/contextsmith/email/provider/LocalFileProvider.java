@@ -19,22 +19,19 @@ public class LocalFileProvider {
   public static final String EMAIL_ROOT_PATH =
       "/Users/rcwang/data/enron_mail_20150507/maildir";
 
-  public static void main(String[] args) throws IOException {
-  }
-
-  public static List<MimeMessage> provide(String userId, long maxMessages) {
+  public static List<MimeMessage> fetchMimeMessages(String userId,
+                                                    long maxMessages) {
     List<MimeMessage> messages = null;
     try {
-      List<File> emails = search(userId, maxMessages);
-      if (emails != null) messages = fetch(emails);
+      List<File> emails = findLocalFiles(userId, maxMessages);
+      if (emails != null) messages = toMimeMessages(emails);
     } catch (IOException e) {
       e.printStackTrace();
     }
     return messages;
   }
 
-  private static List<MimeMessage> fetch(List<File> files)
-      throws IOException {
+  private static List<MimeMessage> toMimeMessages(List<File> files) throws IOException {
     List<MimeMessage> mimeMessages = new ArrayList<>();
     Properties props = new Properties();
     Session session = Session.getDefaultInstance(props, null);
@@ -51,7 +48,7 @@ public class LocalFileProvider {
     return mimeMessages;
   }
 
-  private static List<File> search(String userId, long maxMessages)
+  private static List<File> findLocalFiles(String userId, long maxMessages)
       throws IOException {
     File userPath = new File(EMAIL_ROOT_PATH, userId);
     if (!userPath.exists()) return null;

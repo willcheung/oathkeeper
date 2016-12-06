@@ -3,13 +3,12 @@ package com.contextsmith.utils;
 import java.lang.ref.WeakReference;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
-import com.google.gson.Gson;
 
 public class ProcessUtil {
-
+  public static Stopwatch stopwatch = Stopwatch.createUnstarted();
   public static ObjectMapper jacksonInstance = null;
-  public static Gson gson = null;
 
   public static final String CONFIG_PROP_FILE = "config.properties";
 //  private static final Properties CONFIG_PROP =
@@ -40,11 +39,6 @@ public class ProcessUtil {
     WeakReference<Object> ref = new WeakReference<>(obj);
     obj = null;
     while (ref.get() != null) System.gc();
-  }
-
-  public static Gson getGsonInstance() {
-    if (gson == null) gson = new Gson();
-    return gson;
   }
 
   /*public static Properties getConfigProperties() {

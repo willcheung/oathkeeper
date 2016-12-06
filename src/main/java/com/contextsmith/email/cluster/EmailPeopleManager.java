@@ -9,9 +9,8 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
 
-import com.contextsmith.utils.MimeMessageUtil;
+import com.contextsmith.api.data.Messageable;
 import com.contextsmith.utils.MimeMessageUtil.AddressField;
 
 public class EmailPeopleManager {
@@ -20,7 +19,6 @@ public class EmailPeopleManager {
       AddressField.FROM,
       AddressField.TO,
       AddressField.CC,
-      AddressField.BCC
   };
 
   /*public static void main(String[] args) throws IOException, MessagingException {
@@ -41,28 +39,25 @@ public class EmailPeopleManager {
     }
   }*/
 
-  private Map<AddressField, Map<InternetAddress, List<MimeMessage>>> fieldAddrMsgMap;
+  private Map<AddressField, Map<InternetAddress, List<Messageable>>> fieldAddrMsgMap;
 
   public EmailPeopleManager() {
     this.fieldAddrMsgMap = new HashMap<>();
   }
 
-  public void loadMessages(Collection<MimeMessage> messages) {
-    for (MimeMessage message : messages) {
-//      if (!MimeMessageUtil.isUsefulMessage(message)) continue;
-
+  public void loadMessages(Collection<Messageable> messages) {
+    for (Messageable message : messages) {
       for (AddressField field : ADDRESS_FIELDS) {
-        Set<InternetAddress> addresses =
-            MimeMessageUtil.getValidAddresses(message, field);
-        if (addresses.isEmpty()) continue;
+        Set<InternetAddress> addresses = message.getAddress(field);
+        if (addresses == null || addresses.isEmpty()) continue;
 
-        Map<InternetAddress, List<MimeMessage>> addrMsgMap =
+        Map<InternetAddress, List<Messageable>> addrMsgMap =
             this.fieldAddrMsgMap.get(field);
         if (addrMsgMap == null) {
           this.fieldAddrMsgMap.put(field, addrMsgMap = new HashMap<>());
         }
         for (InternetAddress address : addresses) {
-          List<MimeMessage> msgList = addrMsgMap.get(address);
+          List<Messageable> msgList = addrMsgMap.get(address);
           if (msgList == null) {
             addrMsgMap.put(address, msgList = new ArrayList<>());
           }
@@ -72,11 +67,11 @@ public class EmailPeopleManager {
     }
   }
 
-  public Collection<MimeMessage> lookupMessages(InternetAddress address) {
-    Set<MimeMessage> allMessages = new HashSet<>();
+  public Collection<Messageable> lookupMessages(InternetAddress address) {
+    Set<Messageable> allMessages = new HashSet<>();
 
     for (AddressField field : ADDRESS_FIELDS) {
-      Collection<MimeMessage> messages = lookupMessages(address, field);
+      Collection<Messageable> messages = lookupMessages(address, field);
       if (messages != null) {
         // Uniqueness of message is determined by message's memory address only.
         allMessages.addAll(messages);
@@ -87,9 +82,9 @@ public class EmailPeopleManager {
 
   // Lookup messages that have the input address in the input field.
   // Returns null if no such messages exist.
-  public Collection<MimeMessage> lookupMessages(InternetAddress address,
+  public Collection<Messageable> lookupMessages(InternetAddress address,
                                                 AddressField field) {
-    Map<InternetAddress, List<MimeMessage>> addrMsgMap =
+    Map<InternetAddress, List<Messageable>> addrMsgMap =
         this.fieldAddrMsgMap.get(field);
     return (addrMsgMap == null) ? null : addrMsgMap.get(address);
   }

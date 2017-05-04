@@ -8,6 +8,8 @@ import java.util.Set;
 
 import javax.mail.internet.InternetAddress;
 
+import com.contextsmith.utils.Environment;
+import edu.emory.mathcs.backport.java.util.Collections;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.util.Strings;
 import org.slf4j.Logger;
@@ -29,6 +31,8 @@ public class NewsFeederRequest {
   public static final boolean DEFAULT_SHOW_CONTENT = false;
   public static final boolean DEFAULT_PARSE_TIME = false;
   public static final boolean DEFAULT_PARSE_REQUEST = false;
+  private Provider provider = Provider.gmail;
+
 //  public static final boolean DEFAULT_RESOLVE_PROJECT_NAME = false;
 
   // Input: "abc|def|ghi@xyz.com"
@@ -88,16 +92,17 @@ public class NewsFeederRequest {
   protected Double posSentimentThreshold;
   protected Double negSentimentThreshold;
   protected List<TokenEmailPair> tokenEmailPairs;
+  protected List<Credential> credentials;
   protected MessageType messageType;
 
   // These are optional (can be null).
   protected Long startTimeInSec;
   protected Long endTimeInSec;
   protected String callbackUrl;
-  protected String userQuery;
+  protected String userQuery;        // for user-specified search: not surfaced
   protected String internalDomain;
-  protected String subjectToRetain;
-  protected List<Set<InternetAddress>> externalClusters;
+  protected String subjectToRetain;  // for subject search
+  protected List<Set<InternetAddress>> externalClusters; // limit to these addresses
 
   public NewsFeederRequest() {
     this.messageType = DEFAULT_MESSAGE_TYPE;
@@ -195,6 +200,20 @@ public class NewsFeederRequest {
     return null;
   }
 
+  public List<Credential> parseCredentialsJson(String json) {
+    if (StringUtils.isBlank(json)) return null;
+
+    Type type = new TypeToken<List<Credential>>(){}.getType();
+    try {
+      return StringUtil.getGsonInstance().fromJson(json, type);
+    } catch (JsonSyntaxException e) {
+      log.error(json);
+      log.error(e.toString());
+    }
+    return null;
+  }
+
+
   public void setCallbackUrl(String callbackUrl) {
     this.callbackUrl = callbackUrl;
   }
@@ -219,7 +238,12 @@ public class NewsFeederRequest {
   }
 
   public void setMaxMessages(Integer maxMessages) {
-    if (maxMessages == null) return;
+    if (maxMessages == null) {
+      if (Environment.dev) {
+        this.maxMessages = 100;
+      }
+      return;
+    }
     this.maxMessages = maxMessages;
   }
 
@@ -271,6 +295,10 @@ public class NewsFeederRequest {
     this.tokenEmailPairs = parseTokenEmailJson(json);
   }
 
+  public void setCredentialsJson(String json) {
+    this.credentials = parseCredentialsJson(json);
+  }
+
   public void setUserQuery(String userQuery) {
     this.userQuery = userQuery;
   }
@@ -290,4 +318,25 @@ public class NewsFeederRequest {
     builder.append(this.endTimeInSec).append(OUTPUT_SEP);
     return builder.toString();*/
   }
+
+    public Provider getProvider() {
+        return provider;
+    }
+
+    public void setProvider(Provider p) {
+      this.provider = p;
+    }
+
+  public List<Credential> getCredentials() {
+    return credentials == null ? Collections.emptyList() : credentials;
+  }
+
+  public boolean hasTimeFilter() {
+    return startTimeInSec != null && endTimeInSec != null;
+  }
+
+  public enum Provider {
+      gmail,
+      exchange
+    }
 }

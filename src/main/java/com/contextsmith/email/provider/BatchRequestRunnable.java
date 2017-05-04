@@ -11,7 +11,7 @@ public class BatchRequestRunnable implements Runnable {
   static final Logger log = LogManager.getLogger(BatchRequestRunnable.class);
 
   private BatchRequest batchRequest;
-  private boolean isAvailable;
+  private boolean isAvailable;  // should probably be volatile - JB
 
   BatchRequestRunnable(BatchRequest batchRequest) {
     this.batchRequest = batchRequest;

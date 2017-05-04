@@ -51,7 +51,7 @@ public class MimeMessageUtil {
   public static final String MIME_MESSAGE_ID_HEADER = "Message-ID";
   public static final String LIST_UNSUBSCRIBE_HEADER = "List-Unsubscribe";
   public static final String REFERENCES_HEADER = "References";
-  public static final String SOURCE_INBOX_HEADER = "Source-Inbox";
+  public static final String SOURCE_INBOX_HEADER = "Source-Inbox"; // E-Mail address on which behalf a crawl was done
   public static final String DELIVERED_TO_HEADER = "Delivered-To";
 //  public static final String X_RECEIVED_HEADER = "X-Received";
   public static final String RETURN_PATH_HEADER = "Return-Path";

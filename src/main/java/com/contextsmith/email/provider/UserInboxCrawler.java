@@ -10,17 +10,18 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 import javax.mail.MessagingException;
 import javax.mail.internet.MimeMessage;
 
+import com.contextsmith.api.service.Credential;
+import com.contextsmith.email.provider.exchange.ExchangeServiceProvider;
+import com.contextsmith.email.provider.exchange.MimeMessageProducer;
+import microsoft.exchange.webservices.data.core.ExchangeService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,16 +42,15 @@ public class UserInboxCrawler {
   public static final String DEFAULT_GMAIL_USER = "me";
 
   public static List<MimeMessage> fetchGmails(String query,
-                                              String accessToken,
+                                              GoogleServiceProvider service,
                                               long maxMessages)
     throws IOException {
     checkNotNull(query);
-    checkNotNull(accessToken);
+    checkNotNull(service);
 
     Stopwatch stopwatch = Stopwatch.createStarted();
     log.info("Fetching max {} gmails using query: \"{}\"", maxMessages, query);
 
-    GoogleServiceProvider service = new GoogleServiceProvider(accessToken);
     BatchEmailFetcher fetcher = new BatchEmailFetcher(service.getGmailService());
     List<MimeMessage> messages = fetcher.fetchMimeMessages(
         DEFAULT_GMAIL_USER, query, maxMessages);
@@ -59,6 +59,7 @@ public class UserInboxCrawler {
     return messages;
   }
 
+  /** If the same message occurs in inboxes of several users, pick the first one and add users to it for any duplicates encountered */
   private static Collection<MimeMessage> mergeMessageWithSameId(
       List<Future<List<MimeMessage>>> inboxFutures)
           throws GoogleJsonResponseException {
@@ -109,15 +110,20 @@ public class UserInboxCrawler {
     return idToMessageMap.values();
   }
 
+  private Function<String, GoogleServiceProvider> googleServiceProvider;
+  private Supplier<ExchangeServiceProvider> exchangeServiceProvider;
   private EmailFilterer emailFilterer;
   private EmailNameResolver enResolver;
   private ExecutorService executor;
   private Collection<Messageable> messages;
   private Collection<MimeMessage> unfilteredMimeMessages;
   private Set<Callable<List<MimeMessage>>> callables;
+  private List<Future<List<MimeMessage>>> futures;
   private Pattern subjectRetainPattern;
 
-  public UserInboxCrawler() {
+  public UserInboxCrawler(Function<String, GoogleServiceProvider> googleServiceProvider, Supplier<ExchangeServiceProvider> exchangeServiceProvider) {
+    this.googleServiceProvider = googleServiceProvider;
+    this.exchangeServiceProvider = exchangeServiceProvider;
     this.executor = Executors.newCachedThreadPool(
         new ThreadFactoryBuilder().setNameFormat(
             Thread.currentThread().getName() + ".%d").build());
@@ -130,12 +136,12 @@ public class UserInboxCrawler {
     this.subjectRetainPattern = null;
   }
 
-  public void addTask(final String query, final String accessToken,
-                      final String email, final int maxMessages) {
+  public void addGmailTask(final String query, final String accessToken,
+                           final String email, final int maxMessages) {
     this.callables.add(new Callable<List<MimeMessage>>() {
       @Override
       public List<MimeMessage> call() throws Exception {
-        List<MimeMessage> messages = fetchGmails(query, accessToken, maxMessages);
+        List<MimeMessage> messages = fetchGmails(query, googleServiceProvider.apply(accessToken), maxMessages);
         if (messages == null) return null;
 
         // Insert user's email address into MimeMessage.
@@ -151,6 +157,33 @@ public class UserInboxCrawler {
         }
         return messages;
       }
+    });
+  }
+
+  public void addExchangeTask(String exchangeQuery, Credential cred, int maxMessages) {
+
+    this.callables.add(() -> {
+      ExchangeService exchangeService = exchangeServiceProvider.get().connectAsUser(cred.getUsername(), cred.getPassword(), cred.getUrl());
+      MimeMessageProducer producer = new MimeMessageProducer(exchangeService).query(exchangeQuery).maxMessages(maxMessages);
+      Runtime runtime = Runtime.getRuntime();
+      long usedMemoryBefore = runtime.totalMemory() - runtime.freeMemory();
+      System.out.println("Used Memory before: " + usedMemoryBefore / 1_000_000);
+      long startTime = System.currentTimeMillis();
+
+      List<MimeMessage> mimeMessages = producer.asFlux().map(msg -> {
+        try {
+          msg.addHeader(MimeMessageUtil.SOURCE_INBOX_HEADER, cred.getUsername());
+        } catch (MessagingException e) {
+          e.printStackTrace();
+        }
+        return msg;
+      }).collectList().block();
+
+      System.out.println("Received " + mimeMessages.size() + " messages");
+      long usedMemoryAfter = runtime.totalMemory() - runtime.freeMemory();
+      System.out.println("Memory increased: " + (usedMemoryAfter - usedMemoryBefore) / 1_000_000);
+      System.out.println("Duration (s): " + (System.currentTimeMillis() - startTime) / 1000.0);
+      return mimeMessages;
     });
   }
 

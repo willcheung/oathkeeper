@@ -28,7 +28,7 @@ public class GoogleFluentAppender extends AbstractAppender {
 	private FluentLogger fluentLogger;
 	private String label;
 
-    GoogleFluentAppender(String name, Filter filter, Layout<? extends Serializable> layout, boolean ignoreExceptions,
+    protected GoogleFluentAppender(String name, Filter filter, Layout<? extends Serializable> layout, boolean ignoreExceptions,
 								String tag, String label,
 								String service) {
 		super(name, filter, layout, ignoreExceptions);
@@ -46,31 +46,31 @@ public class GoogleFluentAppender extends AbstractAppender {
 
 	@Override
 	public void append(LogEvent event) {
-		Map<String, Object> messages = new HashMap<>();
+		Map<String, Object> message = new HashMap<>();
 
-		//messages.put("thread", event.getThreadName());
+		//message.put("thread", event.getThreadName());
 		if (event.getThrown() != null) {
 			StringWriter exceptionWriter = new StringWriter();
 			//exceptionWriter.append(event.getMessage().getFormat());
 			event.getThrown().printStackTrace(new PrintWriter(exceptionWriter));
-			messages.put("message", exceptionWriter.toString());
+			message.put("message", exceptionWriter.toString());
 		} else {
-			messages.put("message", "[" + event.getThreadName() + "] " + event.getMessage().getFormattedMessage());
-			messages.put("context", context(event));
+			message.put("message", "[" + event.getThreadName() + "] " + event.getMessage().getFormattedMessage());
+			message.put("context", context(event));
 		}
-		messages.put("serviceContext", serviceContextData);
-		fluentLogger.log(label, messages, event.getTimeMillis() / 1000); // thanks for not documenting that Fluent lib
+		message.put("serviceContext", serviceContextData);
+		fluentLogger.log(label, message, event.getTimeMillis() / 1000); // thanks for not documenting that Fluent lib
 	}
 
 	private Object context(LogEvent event) {
-		HashMap<String, Object> context = new HashMap<>();
+		Map<String, Object> context = new HashMap<>();
 		context.put("reportLocation", location(event));
 		return context;
 	}
 
 	private Object location(LogEvent event) {
 		StackTraceElement source = event.getSource();
-		HashMap<Object, Object> reportLocation = new HashMap<>();
+		Map<String, Object> reportLocation = new HashMap<>();
 		reportLocation.put("filePath", source.getFileName());
 		reportLocation.put("lineNumber", source.getLineNumber());
 		reportLocation.put("functionName", source.getMethodName());

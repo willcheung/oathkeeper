@@ -2,16 +2,73 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>contextsmith</groupId>
   <artifactId>contextsmith</artifactId>
-  <version>0.3.2</version>
+  <version>0.3.4-SNAPSHOT</version>
   
   <build>
     <sourceDirectory>src/main/java</sourceDirectory>
     <plugins>
+        <plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-compiler-plugin</artifactId>
+  <version>3.1</version>
+  <executions>
+    <execution>
+      <id>log4j-plugin-processor</id>
+      <goals>
+        <goal>compile</goal>
+      </goals>
+      <phase>process-classes</phase>
+      <configuration>
+        <proc>only</proc>
+        <annotationProcessors>
+          <annotationProcessor>org.apache.logging.log4j.core.config.plugins.processor.PluginProcessor</annotationProcessor>
+        </annotationProcessors>
+      </configuration>
+    </execution>
+  </executions>
+</plugin>
+
+        <plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-shade-plugin</artifactId>
+  <version>2.4.3</version>
+  <configuration>
+      <filters>
+        <filter>
+            <artifact>*:*</artifact>
+            <excludes>
+                <exclude>META-INF/*.SF</exclude>
+                <exclude>META-INF/*.DSA</exclude>
+                <exclude>META-INF/*.RSA</exclude>
+            </excludes>
+        </filter>
+    </filters>
+    <transformers>
+      <transformer implementation="com.github.edwgiz.mavenShadePlugin.log4j2CacheTransformer.PluginsCacheFileTransformer" />
+    </transformers>
+  </configuration>
+  <dependencies>
+    <dependency>
+      <groupId>com.github.edwgiz</groupId>
+      <artifactId>maven-shade-plugin.log4j2-cachefile-transformer</artifactId>
+      <version>2.6.1</version>
+    </dependency>
+  </dependencies>
+  <executions>
+    <execution>
+      <id>make-assembly</id>
+      <phase>package</phase>
+      <goals>
+        <goal>shade</goal>
+      </goals>
+    </execution>
+  </executions>
+</plugin>
+        <!--
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
         <configuration>
-          <!-- DO NOT include log4j.properties file in your Jar -->
-          <excludes>
+            <excludes>
             <exclude>**/log4j2.xml</exclude>
           </excludes>
           <archive>
@@ -25,22 +82,23 @@
         </configuration>
         <executions>
           <execution>
-            <id>create-my-bundle</id> <!-- this is used for inheritance merges -->
-            <phase>package</phase> <!-- bind to the packaging phase -->
+            <id>create-my-bundle</id> !- this is used for inheritance merges
+            <phase>package</phase> - bind to the packaging phase
             <goals>
               <goal>single</goal>
             </goals>
           </execution>
         </executions>
-      </plugin>
+      </plugin> -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>2.6</version>
         <configuration>
-          <excludes>
+          <!-- <excludes>
             <exclude>**/log4j2.xml</exclude>
           </excludes>
+          -->
           <archive>
             <manifest>
               <mainClass>com.contextsmith.api.service.ServerMain</mainClass>
@@ -75,6 +133,7 @@
         <artifactId>heroku-maven-plugin</artifactId>
         <version>0.5.6</version>
       </plugin> -->
+        <!-- gcloud compute -project "contextsmith" copy-files -zone "us-west1-b" contextsmith-0.3.4-SNAPSHOT-jar-with-dependencies.jar contextsmith-backend-1:. -->
     </plugins>
   </build>
   <dependencies>
@@ -194,6 +253,11 @@
 		  <artifactId>log4j-core</artifactId>
 		  <version>2.4.1</version>
 	  </dependency>
+      <dependency>
+          <groupId>org.fluentd</groupId>
+          <artifactId>fluent-logger</artifactId>
+          <version>0.3.2</version>
+      </dependency>
 	  <dependency>
 	  	<groupId>org.jsoup</groupId>
 	  	<artifactId>jsoup</artifactId>

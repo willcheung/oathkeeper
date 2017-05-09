@@ -38,6 +38,19 @@ public abstract class AbstractAnnotator implements Annotatable {
   public static final Set<Character> VALID_EN_END_CHARS =
       new HashSet<>(Chars.asList(" ~,.:;'’”\"!?/<)}]|".toCharArray()));
 
+  private AhoCorasick ahoCorasick;  // A super efficient matching algorithm.
+
+  private List<Mention> mentionList;  // Required for AhoCorasick.
+
+  private String annotatorType;
+  private boolean isIgnoreCase;
+  private boolean isTitleCase;
+
+  private boolean isPrefixMatch;
+  private boolean isSuffixMatch;
+  private boolean isOutputLongestSpan;
+  private int minChars;
+  private int priority;
   public static void interactiveRun(Annotatable annotator) {
     Scanner scanner = new Scanner(System.in);
     while (true) {
@@ -55,7 +68,6 @@ public abstract class AbstractAnnotator implements Annotatable {
     }
     scanner.close();
   }
-
   private static boolean hasValidBoundingChars(String text, int startPos,
                                                int endPos) {
     // Test the character that is one char before the token.
@@ -69,18 +81,6 @@ public abstract class AbstractAnnotator implements Annotatable {
       VALID_EN_END_CHARS.contains(text.charAt(endPos));
     return validEnd;
   }
-
-  private AhoCorasick ahoCorasick;  // A super efficient matching algorithm.
-  private List<Mention> mentionList;  // Required for AhoCorasick.
-  private String annotatorType;
-
-  private boolean isIgnoreCase;
-  private boolean isTitleCase;
-  private boolean isPrefixMatch;
-  private boolean isSuffixMatch;
-  private boolean isOutputLongestSpan;
-  private int minChars;
-  private int priority;
 
   public AbstractAnnotator(String annotatorType) {
     checkArgument(annotatorType != null, "Annotator ID cannot be null");
@@ -97,6 +97,7 @@ public abstract class AbstractAnnotator implements Annotatable {
     this.ahoCorasick = new AhoCorasick();
     this.mentionList = new ArrayList<>();
   }
+
   @Override
   public List<Annotation> annotate(Annotation annotation) {
     beforeAnnotateCore(annotation.getText());

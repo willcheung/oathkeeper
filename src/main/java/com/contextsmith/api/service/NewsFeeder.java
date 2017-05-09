@@ -34,6 +34,7 @@ import com.contextsmith.api.data.Messageable;
 import com.contextsmith.api.data.Project;
 import com.contextsmith.api.data.ProjectFactory;
 import com.contextsmith.email.cluster.EmailClusterer;
+import com.contextsmith.email.cluster.EmailClusterer.ClusteringMethod;
 import com.contextsmith.email.provider.GmailQueryBuilder;
 import com.contextsmith.email.provider.UserEventCrawler;
 import com.contextsmith.email.provider.UserInboxCrawler;
@@ -44,8 +45,6 @@ import com.google.common.base.Stopwatch;
 @Path("newsfeed")
 public class NewsFeeder {
   public static enum MessageType { EMAIL, EVENT }
-
-  static final Logger log = LoggerFactory.getLogger(NewsFeeder.class);;
   public static final int DEFAULT_HTTP_ERROR_CODE = HttpStatus.BAD_REQUEST_400;
   public static final String JSON_RESPONSE_DIR = "json-responses";
   public static final String JSON_EXT = ".json";
@@ -53,6 +52,7 @@ public class NewsFeeder {
   static final UrlValidator urlValidator = Environment.mode == Mode.production ? UrlValidator.getInstance() : new UrlValidator(UrlValidator.ALLOW_LOCAL_URLS + UrlValidator.ALLOW_ALL_SCHEMES);
   // For callback.
   private static ExecutorService executor = Executors.newCachedThreadPool();
+  private static final Logger log = LoggerFactory.getLogger(NewsFeeder.class);
 
   @GET
   @Path("cluster")
@@ -68,6 +68,7 @@ public class NewsFeeder {
       @QueryParam("after") Long startTimeInSec,  // Optional
       @QueryParam("before") Long endTimeInSec,  // Optional
       @QueryParam("in_domain") String internalDomain,  // Optional
+      @QueryParam("cluster_method") ClusteringMethod clusteringMethod,  // Optional
       @QueryParam("callback") String callbackUrl) {
     // Set thread name at entry point.
     Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
@@ -84,7 +85,7 @@ public class NewsFeeder {
                           startTimeInSec, endTimeInSec, internalDomain,
                           maxMessages, showContent, parseTime, parseRequest,
                           posSentimentThreshold, negSentimentThreshold,
-                          callbackUrl);
+                          clusteringMethod, callbackUrl);
   }
 
   @GET
@@ -103,9 +104,9 @@ public class NewsFeeder {
       @QueryParam("preview") Boolean showContent,  // Transient
       @QueryParam("time") Boolean parseTime,  // Transient
       @QueryParam("request") Boolean parseRequest,  // Transient
-//      @QueryParam("project_name") Boolean resolveProjectName,  // Transient
       @QueryParam("pos_sentiment") Double posSentimentThreshold,
       @QueryParam("neg_sentiment") Double negSentimentThreshold,
+      @QueryParam("cluster_method") ClusteringMethod clusteringMethod,  // Optional
       @QueryParam("callback") String callbackUrl) {  // Optional
     // Set thread name at entry point.
     Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
@@ -126,9 +127,9 @@ public class NewsFeeder {
     request.setShowContent(showContent);
     request.setParseTime(parseTime);
     request.setParseRequest(parseRequest);
-//    request.setResolveProjectName(resolveProjectName);
     request.setPosSentimentThreshold(posSentimentThreshold);
     request.setNegSentimentThreshold(negSentimentThreshold);
+    request.setClusteringMethod(clusteringMethod);
     request.setSubjectToRetain(subjectToRetain);
 
     // Parsing jsons.
@@ -180,9 +181,7 @@ public class NewsFeeder {
     } else {
       return makeJsonError("Missing company's internal domain.");
     }
-    log.info("[{}] sent a request: {}",
-             request.getInternalDomain(),
-             request.toString());
+    log.info("[{}] sent a request: {}", request.getInternalDomain(), request.toString());
 
     if (StringUtils.isBlank(callbackUrl)) {  // No callback. Blocking
       String jsonOutput = processRequest(request);
@@ -219,7 +218,7 @@ public class NewsFeeder {
     final MessageType MSG_TYPE = MessageType.EVENT;
     return createResponse(MSG_TYPE, tokenEmailJson, null, null, externalClusterJson,
                           startTimeInSec, endTimeInSec, internalDomain,
-                          maxMessages, false, false, false, null, null, null);
+                          maxMessages, false, false, false, null, null, null, null);
   }
 
   @GET
@@ -255,7 +254,7 @@ public class NewsFeeder {
                           externalClusterJson, startTimeInSec, endTimeInSec,
                           internalDomain, maxMessages, SHOW_CONTENT, parseTime,
                           parseRequest, posSentimentThreshold,
-                          negSentimentThreshold, null);
+                          negSentimentThreshold, null, null);
   }
 
   @GET
@@ -282,7 +281,7 @@ public class NewsFeeder {
                           externalClusterJson, startTimeInSec, endTimeInSec,
                           internalDomain, maxMessages, SHOW_CONTENT, parseTime,
                           parseRequest, posSentimentThreshold,
-                          negSentimentThreshold, null);
+                          negSentimentThreshold, null, null);
   }
 
   protected static String processRequest(NewsFeederRequest request) {
@@ -374,7 +373,8 @@ public class NewsFeeder {
       externalClusters = EmailClusterer.findExternalClusters(
           inboxCrawler.getUnfilteredMimeMessages(),
           request.getTokenEmailPairs(),
-          request.getInternalDomain());
+          request.getInternalDomain(),
+          request.getClusteringMethod());
     }
     if (externalClusters == null || externalClusters.isEmpty()) {
       log.warn("No external clusters found.");
@@ -452,16 +452,6 @@ public class NewsFeeder {
       Set<InternetAddress> externalCluster = externalClusters.get(i);
       log.debug("Creating project #{}...", i + 1);
 
-//      Project project = projectFactory.createProject(
-//          request.getInternalDomain(),
-//          externalCluster,
-//          request.isShowContent(),
-//          request.isParseTime(),
-//          request.isParseRequest(),
-//          request.isResolveProjectName(),
-//          request.getPosSentimentThreshold(),
-//          request.getNegSentimentThreshold(),
-//          searchPattern);
       Project project = projectFactory.createProject(
           request.getInternalDomain(),
           externalCluster);

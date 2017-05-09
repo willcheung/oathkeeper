@@ -13,22 +13,42 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.contextsmith.api.service.NewsFeeder.MessageType;
+import com.contextsmith.email.cluster.EmailClusterer.ClusteringMethod;
 import com.contextsmith.utils.InternetAddressUtil;
 import com.contextsmith.utils.StringUtil;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
 public class NewsFeederRequest {
-  private static final Logger log = LoggerFactory.getLogger(
-      NewsFeederRequest.class);
+  private static final Logger log = LoggerFactory.getLogger(NewsFeederRequest.class);
 
   public static final String OUTPUT_SEP = " | ";
   public static final MessageType DEFAULT_MESSAGE_TYPE = MessageType.EMAIL;
+  public static final ClusteringMethod DEFAULT_CLUSTERING_METHOD = ClusteringMethod.BY_EMAIL_DOMAIN;
   public static final int DEFAULT_MAX_MESSAGES = 1_000;
   public static final boolean DEFAULT_SHOW_CONTENT = false;
   public static final boolean DEFAULT_PARSE_TIME = false;
   public static final boolean DEFAULT_PARSE_REQUEST = false;
-//  public static final boolean DEFAULT_RESOLVE_PROJECT_NAME = false;
+
+  // These are mandatory (cannot be null).
+  protected int maxMessages;
+  protected boolean showContent;
+  protected boolean parseTime;
+  protected boolean parseRequest;
+  protected Double posSentimentThreshold;
+  protected Double negSentimentThreshold;
+  protected MessageType messageType;
+  protected List<TokenEmailPair> tokenEmailPairs;
+  protected ClusteringMethod clusteringMethod;
+
+  // These are optional (can be null).
+  protected Long startTimeInSec;
+  protected Long endTimeInSec;
+  protected String callbackUrl;
+  protected String userQuery;
+  protected String internalDomain;
+  protected String subjectToRetain;
+  protected List<Set<InternetAddress>> externalClusters;
 
   // Input: "abc|def|ghi@xyz.com"
   // Returns: [abc@xyz.com, def@xyz.com, ghi@xyz.com]
@@ -51,7 +71,6 @@ public class NewsFeederRequest {
     }
     return addresses;
   }
-
   public static List<Set<InternetAddress>> parseExternalClusterJson(String json) {
     if (StringUtils.isBlank(json)) return null;
 
@@ -78,26 +97,6 @@ public class NewsFeederRequest {
     return clusters;
   }
 
-  // These are mandatory (cannot be null).
-  protected int maxMessages;
-  protected boolean showContent;
-  protected boolean parseTime;
-  protected boolean parseRequest;
-//  protected boolean resolveProjectName;
-  protected Double posSentimentThreshold;
-  protected Double negSentimentThreshold;
-  protected List<TokenEmailPair> tokenEmailPairs;
-  protected MessageType messageType;
-
-  // These are optional (can be null).
-  protected Long startTimeInSec;
-  protected Long endTimeInSec;
-  protected String callbackUrl;
-  protected String userQuery;
-  protected String internalDomain;
-  protected String subjectToRetain;
-  protected List<Set<InternetAddress>> externalClusters;
-
   public NewsFeederRequest() {
     this.messageType = DEFAULT_MESSAGE_TYPE;
     this.tokenEmailPairs = null;
@@ -108,17 +107,20 @@ public class NewsFeederRequest {
     this.showContent = DEFAULT_SHOW_CONTENT;
     this.parseTime = DEFAULT_PARSE_TIME;
     this.parseRequest = DEFAULT_PARSE_REQUEST;
-//    this.resolveProjectName = DEFAULT_RESOLVE_PROJECT_NAME;
     this.startTimeInSec = null;
     this.endTimeInSec = null;
     this.internalDomain = null;
     this.subjectToRetain = null;
     this.posSentimentThreshold = null;
     this.negSentimentThreshold = null;
+    this.clusteringMethod = DEFAULT_CLUSTERING_METHOD;
   }
-
   public String getCallbackUrl() {
     return this.callbackUrl;
+  }
+
+  public ClusteringMethod getClusteringMethod() {
+    return this.clusteringMethod;
   }
 
   public Long getEndTimeInSec() {
@@ -177,10 +179,6 @@ public class NewsFeederRequest {
     return this.showContent;
   }
 
-//  public boolean isResolveProjectName() {
-//    return this.resolveProjectName;
-//  }
-
   public List<TokenEmailPair> parseTokenEmailJson(String json) {
     if (StringUtils.isBlank(json)) return null;
 
@@ -197,6 +195,11 @@ public class NewsFeederRequest {
   public void setCallbackUrl(String callbackUrl) {
     this.callbackUrl = callbackUrl;
   }
+
+  public void setClusteringMethod(ClusteringMethod clusteringMethod) {
+      if (clusteringMethod == null) return;
+    this.clusteringMethod = clusteringMethod;
+}
 
   public void setEndTimeInSec(Long endTimeInSec) {
     this.endTimeInSec = endTimeInSec;
@@ -244,11 +247,6 @@ public class NewsFeederRequest {
     this.posSentimentThreshold = posSentimentThreshold;
   }
 
-//  public void setResolveProjectName(Boolean resolve) {
-//    if (resolve == null) return;
-//    this.resolveProjectName = resolve;
-//  }
-
   public void setShowContent(Boolean showContent) {
     if (showContent == null) return;
     this.showContent = showContent;
@@ -277,16 +275,5 @@ public class NewsFeederRequest {
   @Override
   public String toString() {
     return StringUtil.toJson(this);
-    /*StringBuilder builder = new StringBuilder();
-    builder.append(this.tokenEmailPairs).append(OUTPUT_SEP);
-    builder.append(this.searchQuery).append(OUTPUT_SEP);
-    builder.append(this.externalClusters).append(OUTPUT_SEP);
-    builder.append(this.maxMessages).append(OUTPUT_SEP);
-    builder.append(this.callbackUrl).append(OUTPUT_SEP);
-    builder.append(this.showContent).append(OUTPUT_SEP);
-    builder.append(this.resolveProjectName).append(OUTPUT_SEP);
-    builder.append(this.startTimeInSec).append(OUTPUT_SEP);
-    builder.append(this.endTimeInSec).append(OUTPUT_SEP);
-    return builder.toString();*/
   }
 }

@@ -9,7 +9,6 @@ import java.util.Set;
 import javax.mail.internet.InternetAddress;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.util.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,14 +37,14 @@ public class NewsFeederRequest {
     if (parts.length != 2) return null;
 
     String domain = parts[1];
-    if (Strings.isBlank(domain)) return null;
+    if (StringUtils.isBlank(domain)) return null;
 
     String[] users = StringUtils.split(parts[0], '|');
     if (users.length == 0) return null;
 
     List<InternetAddress> addresses = new ArrayList<>();
     for (String user : users) {
-      if (Strings.isBlank(user)) continue;
+      if (StringUtils.isBlank(user)) continue;
       String email = user + "@" + domain;
       InternetAddress ia = InternetAddressUtil.newIAddress(email);
       if (ia != null) addresses.add(ia);

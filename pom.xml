@@ -9,27 +9,6 @@
     <plugins>
         <plugin>
   <groupId>org.apache.maven.plugins</groupId>
-  <artifactId>maven-compiler-plugin</artifactId>
-  <version>3.1</version>
-  <executions>
-    <execution>
-      <id>log4j-plugin-processor</id>
-      <goals>
-        <goal>compile</goal>
-      </goals>
-      <phase>process-classes</phase>
-      <configuration>
-        <proc>only</proc>
-        <annotationProcessors>
-          <annotationProcessor>org.apache.logging.log4j.core.config.plugins.processor.PluginProcessor</annotationProcessor>
-        </annotationProcessors>
-      </configuration>
-    </execution>
-  </executions>
-</plugin>
-
-        <plugin>
-  <groupId>org.apache.maven.plugins</groupId>
   <artifactId>maven-shade-plugin</artifactId>
   <version>2.4.3</version>
   <configuration>
@@ -43,9 +22,6 @@
             </excludes>
         </filter>
     </filters>
-    <transformers>
-      <transformer implementation="com.github.edwgiz.mavenShadePlugin.log4j2CacheTransformer.PluginsCacheFileTransformer" />
-    </transformers>
   </configuration>
   <dependencies>
     <dependency>
@@ -68,9 +44,6 @@
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
         <configuration>
-            <excludes>
-            <exclude>**/log4j2.xml</exclude>
-          </excludes>
           <archive>
             <manifest>
               <mainClass>com.contextsmith.api.service.ServerMain</mainClass>
@@ -81,9 +54,9 @@
           </descriptorRefs>
         </configuration>
         <executions>
-          <execution>
-            <id>create-my-bundle</id> !- this is used for inheritance merges
-            <phase>package</phase> - bind to the packaging phase
+            <execution>
+            <id>create-my-bundle</id> - this is used for inheritance merges -
+            <phase>package</phase> - bind to the packaging phase -
             <goals>
               <goal>single</goal>
             </goals>
@@ -95,10 +68,6 @@
         <artifactId>maven-jar-plugin</artifactId>
         <version>2.6</version>
         <configuration>
-          <!-- <excludes>
-            <exclude>**/log4j2.xml</exclude>
-          </excludes>
-          -->
           <archive>
             <manifest>
               <mainClass>com.contextsmith.api.service.ServerMain</mainClass>
@@ -243,22 +212,7 @@
   		<artifactId>commons-validator</artifactId>
   		<version>1.4.1</version>
   	</dependency>
-    <dependency>
-	    <groupId>org.apache.logging.log4j</groupId>
-	    <artifactId>log4j-api</artifactId>
-	    <version>2.4.1</version>
-    </dependency>
-	  <dependency>
-		  <groupId>org.apache.logging.log4j</groupId>
-		  <artifactId>log4j-core</artifactId>
-		  <version>2.4.1</version>
-	  </dependency>
       <dependency>
-          <groupId>org.fluentd</groupId>
-          <artifactId>fluent-logger</artifactId>
-          <version>0.3.2</version>
-      </dependency>
-	  <dependency>
 	  	<groupId>org.jsoup</groupId>
 	  	<artifactId>jsoup</artifactId>
 	  	<version>1.7.2</version>
@@ -323,11 +277,11 @@
       <artifactId>chronicle-map</artifactId>
       <version>2.3.9</version>
     </dependency> -->
-    <!-- <dependency>
+    <dependency>
       <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
-      <version>1.7.13</version>
-    </dependency> -->
+      <artifactId>slf4j-jdk14</artifactId>
+      <version>LATEST</version>
+    </dependency>
     <!-- <dependency>
       <groupId>it.unimi.dsi</groupId>
       <artifactId>dsiutils</artifactId>
@@ -343,21 +297,21 @@
       <artifactId>prettytime-nlp</artifactId>
       <version>4.0.1.Final</version>
     </dependency> -->
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-slf4j-impl</artifactId>
-      <version>2.5</version>
-    </dependency>
-    <dependency>
+    <!-- <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>jul-to-slf4j</artifactId>
       <version>1.7.18</version>
-    </dependency>
+    </dependency> -->
     <dependency>
       <groupId>uk.org.lidalia</groupId>
       <artifactId>sysout-over-slf4j</artifactId>
       <version>1.0.2</version>
     </dependency>
+      <dependency>
+  <groupId>com.google.cloud</groupId>
+  <artifactId>google-cloud-logging</artifactId>
+  <version>1.0.1</version>
+</dependency>
     <dependency>
       <groupId>com.joestelmach</groupId>
       <artifactId>natty</artifactId>

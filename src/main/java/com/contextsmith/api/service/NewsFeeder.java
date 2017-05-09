@@ -19,6 +19,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 
+import com.contextsmith.utils.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.validator.routines.EmailValidator;
@@ -36,11 +37,6 @@ import com.contextsmith.email.cluster.EmailClusterer;
 import com.contextsmith.email.provider.GmailQueryBuilder;
 import com.contextsmith.email.provider.UserEventCrawler;
 import com.contextsmith.email.provider.UserInboxCrawler;
-import com.contextsmith.utils.AnnotationUtil;
-import com.contextsmith.utils.EmailClustererUtil;
-import com.contextsmith.utils.InternetAddressUtil;
-import com.contextsmith.utils.MimeMessageUtil;
-import com.contextsmith.utils.StringUtil;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.common.base.Stopwatch;
@@ -54,7 +50,7 @@ public class NewsFeeder {
   public static final String JSON_RESPONSE_DIR = "json-responses";
   public static final String JSON_EXT = ".json";
   public static final int MIN_QUERY_TOKEN_LENGTH = 3;
-
+  static final UrlValidator urlValidator = Environment.mode == Mode.production ? UrlValidator.getInstance() : new UrlValidator(UrlValidator.ALLOW_LOCAL_URLS + UrlValidator.ALLOW_ALL_SCHEMES);
   // For callback.
   private static ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -79,7 +75,7 @@ public class NewsFeeder {
     // Must have callback URL.
     if (StringUtils.isBlank(callbackUrl)) {
       return makeJsonError("Missing 'callback' parameter.");
-    } else if (!UrlValidator.getInstance().isValid(callbackUrl)) {
+    } else if (!urlValidator.isValid(callbackUrl)) {
       return makeJsonError("Invalid 'callback' parameter: " + callbackUrl);
     }
 
@@ -116,7 +112,7 @@ public class NewsFeeder {
 
     // Verify callback URL (if exist).
     if (StringUtils.isNotBlank(callbackUrl) &&
-        !UrlValidator.getInstance().isValid(callbackUrl)) {
+        !urlValidator.isValid(callbackUrl)) {
       return makeJsonError("Invalid callback URL: " + callbackUrl);
     }
 

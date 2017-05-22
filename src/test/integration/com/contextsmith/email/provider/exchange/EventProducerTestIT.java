@@ -12,7 +12,8 @@ import static org.junit.Assert.*;
 /**
  * Created by beders on 5/1/17.
  */
-public class EventProducerTest {
+
+public class EventProducerTestIT {
 
     String username = System.getenv("USERNAME");
     String password = System.getenv("PASSWORD");

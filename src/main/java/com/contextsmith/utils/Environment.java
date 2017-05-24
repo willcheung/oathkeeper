@@ -10,7 +10,6 @@ import java.util.stream.Stream;
  * Created by beders on 4/11/17.
  */
 public class Environment {
-
     public static final Mode mode;
 
     static {
@@ -30,4 +29,3 @@ public class Environment {
     }
 
 }
-

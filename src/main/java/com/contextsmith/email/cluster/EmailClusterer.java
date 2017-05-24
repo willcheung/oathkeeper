@@ -83,14 +83,21 @@ public class EmailClusterer {
   }
 
   // Returns only clusters containing external e-mail addresses.
+
+  /**
+   * Find external clusters, unless they are provided already
+   * @param messages
+   * @param emailAddresses list of internal e-mail addresses (i.e. users for which we retrieve emails)
+   * @param internalDomain
+   * @return
+   */
   public static List<Set<InternetAddress>> findExternalClusters(
       Collection<MimeMessage> messages,
-      List<TokenEmailPair> tokenEmailPairs,
+      List<InternetAddress> emailAddresses,  // from either TokenEmailPair or credentials
       String internalDomain,
       ClusteringMethod clusteringMethod) {
     checkNotNull(messages);
-    checkNotNull(tokenEmailPairs);
-    if (tokenEmailPairs.isEmpty()) return null;
+    if (emailAddresses.isEmpty()) return null;
     if (StringUtils.isBlank(internalDomain)) return null;
 
     // Find all user's alias e-mail addresses.
@@ -99,9 +106,7 @@ public class EmailClusterer {
     analyzer.printAllResults();
 
     // Insert all internal email addresses into the alias set.
-    for (TokenEmailPair tokenEmailPair : tokenEmailPairs) {
-      sortedAliasEmails.add(tokenEmailPair.getEmailAddress());
-    }
+    sortedAliasEmails.addAll(emailAddresses);
 
     // Filter out irrelevant emails.
     Collection<MimeMessage> filtered = new EmailFilterer()

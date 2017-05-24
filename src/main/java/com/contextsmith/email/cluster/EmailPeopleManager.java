@@ -45,6 +45,7 @@ public class EmailPeopleManager {
     this.fieldAddrMsgMap = new HashMap<>();
   }
 
+  /** Create a graph AddressField -> address -> list of messages */
   public void loadMessages(Collection<Messageable> messages) {
     for (Messageable message : messages) {
       for (AddressField field : ADDRESS_FIELDS) {

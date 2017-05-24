@@ -21,7 +21,7 @@ import java.util.function.Supplier;
 
 import javax.mail.MessagingException;
 
-import com.contextsmith.api.service.Credential;
+import com.contextsmith.api.service.Source;
 import com.contextsmith.email.provider.exchange.EventProducer;
 import com.contextsmith.email.provider.exchange.ExchangeServiceProvider;
 import microsoft.exchange.webservices.data.core.ExchangeService;
@@ -207,9 +207,9 @@ public class UserEventCrawler {
     });
   }
 
-  public void addExchangeTask(Credential cred, final long startDate, final long endDate, int maxEvents) {
+  public void addExchangeTask(Source source, final long startDate, final long endDate, int maxEvents) {
       this.callables.add(() -> {
-          ExchangeService exchangeService = exchangeServiceProvider.get().connectAsUser(cred.getUsername(), cred.getPassword(), cred.getUrl());
+          ExchangeService exchangeService = exchangeServiceProvider.get().connectAsUser(source.email, source.password.toCharArray(), source.url);
           EventProducer producer = new EventProducer(exchangeService).maxMessages(maxEvents).startDate(startDate).endDate(endDate);
           Runtime runtime = Runtime.getRuntime();
           long usedMemoryBefore = runtime.totalMemory() - runtime.freeMemory();
@@ -223,7 +223,7 @@ public class UserEventCrawler {
                   sources = new ArrayList<>();
                   event.set(MimeMessageUtil.SOURCE_INBOX_HEADER, sources);
               }
-              sources.add(cred.getUsername());
+              sources.add(source.email);
               return event;
           }).collectList().block();
 

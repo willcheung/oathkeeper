@@ -2,6 +2,7 @@ package com.contextsmith.api.service;
 
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import javax.mail.internet.InternetAddress;
 
@@ -18,6 +19,9 @@ import com.contextsmith.utils.InternetAddressUtil;
 import com.contextsmith.utils.StringUtil;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
+
+import static com.contextsmith.api.service.NewsFeederRequest.Provider.exchange;
+import static com.contextsmith.api.service.NewsFeederRequest.Provider.gmail;
 
 public class NewsFeederRequest {
     public static final String OUTPUT_SEP = " | ";
@@ -36,8 +40,6 @@ public class NewsFeederRequest {
     //  protected boolean resolveProjectName;
     protected Double posSentimentThreshold;
     protected Double negSentimentThreshold;
-    protected List<TokenEmailPair> tokenEmailPairs;
-    protected List<Credential> credentials;
     protected MessageType messageType;
     // These are optional (can be null).
     protected Long startTimeInSec;
@@ -48,11 +50,11 @@ public class NewsFeederRequest {
     protected String subjectToRetain;  // for subject search
     protected List<Set<InternetAddress>> externalClusters; // limit to these addresses
     private ClusteringMethod clusteringMethod;
-    private Provider provider = Provider.gmail;
+    private Provider provider = gmail;
+    private SourceConfiguration sourceConfiguration = new SourceConfiguration();
 
     public NewsFeederRequest() {
         this.messageType = DEFAULT_MESSAGE_TYPE;
-        this.tokenEmailPairs = null;
         this.userQuery = null;
         this.externalClusters = null;
         this.maxMessages = DEFAULT_MAX_MESSAGES;
@@ -67,6 +69,7 @@ public class NewsFeederRequest {
         this.posSentimentThreshold = null;
         this.negSentimentThreshold = null;
         this.clusteringMethod = DEFAULT_CLUSTERING_METHOD;
+        this.sourceConfiguration.sources = new Source[]{};
     }
 
     public String getCallbackUrl() {
@@ -95,11 +98,7 @@ public class NewsFeederRequest {
     }
 
     public List<Set<InternetAddress>> getExternalClusters() {
-        return this.externalClusters;
-    }
-
-    public void setExternalClusters(List<Set<InternetAddress>> externalClusters) {
-        this.externalClusters = externalClusters;
+        return this.sourceConfiguration.getExternalClusters();
     }
 
     public String getInternalDomain() {
@@ -165,11 +164,9 @@ public class NewsFeederRequest {
     }
 
     public List<TokenEmailPair> getTokenEmailPairs() {
-        return this.tokenEmailPairs;
-    }
-
-    public void setTokenEmailPairs(List<TokenEmailPair> tokenEmailPairs) {
-        this.tokenEmailPairs = tokenEmailPairs;
+        return Arrays.stream(sourceConfiguration.sources)
+                .filter(source -> source.kind == gmail)
+                .map(source -> new TokenEmailPair(source.token, source.email)).collect(Collectors.toList());
     }
 
     public String getUserQuery() {
@@ -207,68 +204,21 @@ public class NewsFeederRequest {
         this.showContent = showContent;
     }
 
-    public List<TokenEmailPair> parseTokenEmailJson(String json) {
-        if (StringUtils.isBlank(json)) return null;
-
-        Type tokenEmailType = new TypeToken<List<TokenEmailPair>>() {
-        }.getType();
-        try {
-            return StringUtil.getGsonInstance().fromJson(json, tokenEmailType);
-        } catch (JsonSyntaxException e) {
-            log.error(json);
-            log.error(e.toString());
-        }
-        return null;
-    }
-
-    public List<Credential> parseCredentialsJson(String json) {
-        if (StringUtils.isBlank(json)) return null;
-
-        Type type = new TypeToken<List<Credential>>() {
-        }.getType();
-        try {
-            return StringUtil.getGsonInstance().fromJson(json, type);
-        } catch (JsonSyntaxException e) {
-            log.error(json);
-            log.error(e.toString());
-        }
-        return null;
-    }
-
-    public void setExternalClustersFromJson(String json) {
-        List<Set<InternetAddress>> clusters = parseExternalClusterJson(json);
-        if (clusters != null && !clusters.isEmpty()) {
-            this.externalClusters = clusters;
-        }
-    }
-
-    public void setTokenEmailPairsFromJson(String json) {
-        this.tokenEmailPairs = parseTokenEmailJson(json);
-    }
-
-    public void setCredentialsJson(String json) {
-        this.credentials = parseCredentialsJson(json);
-    }
-
     @Override
     public String toString() {
         return StringUtil.toJson(this);
     }
 
-    public Provider getProvider() {
-        return provider;
-    }
-
-    public void setProvider(Provider p) {
-        this.provider = p;
-    }
-
-    public List<Credential> getCredentials() {
-        return credentials == null ? Collections.emptyList(): credentials;
-    }
-
     public boolean hasTimeFilter() {
         return startTimeInSec != null && endTimeInSec != null;
+    }
+
+    public void setSourceConfiguration(SourceConfiguration sourceConfiguration) {
+        this.sourceConfiguration = sourceConfiguration;
+    }
+
+    public SourceConfiguration getSourceConfiguration() {
+        return sourceConfiguration;
     }
 
     public enum Provider {

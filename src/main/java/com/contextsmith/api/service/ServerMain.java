@@ -59,8 +59,8 @@ public class ServerMain {
 
     // Tells the Jersey Servlet which REST service/class to load.
     servlet.setInitParameter(
-        "jersey.config.server.provider.classnames",
-        NewsFeeder.class.getCanonicalName());
+        "jersey.config.server.provider.packages",
+        NewsFeeder.class.getPackage().getName());
 
     try {
       server.start();

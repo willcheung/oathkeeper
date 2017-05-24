@@ -1,22 +1,23 @@
 package com.contextsmith.api.service;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.regex.Pattern;
-
-import javax.mail.internet.InternetAddress;
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-
+import com.contextsmith.api.data.*;
+import com.contextsmith.email.cluster.EmailClusterer;
+import com.contextsmith.email.cluster.EmailClusterer.ClusteringMethod;
+import com.contextsmith.email.provider.GmailQueryBuilder;
 import com.contextsmith.email.provider.GoogleServiceProvider;
+import com.contextsmith.email.provider.UserEventCrawler;
+import com.contextsmith.email.provider.UserInboxCrawler;
 import com.contextsmith.email.provider.exchange.AQSBuilder;
 import com.contextsmith.email.provider.exchange.ExchangeServiceProvider;
-
 import com.contextsmith.utils.*;
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.common.base.Stopwatch;
+import com.martiansoftware.validation.Hope;
+import com.martiansoftware.validation.UncheckedValidationException;
+import microsoft.exchange.webservices.data.autodiscover.exception.AutodiscoverLocalException;
+import microsoft.exchange.webservices.data.autodiscover.exception.AutodiscoverUnauthorizedException;
+import microsoft.exchange.webservices.data.core.ExchangeService;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.validator.routines.EmailValidator;
@@ -25,19 +26,17 @@ import org.eclipse.jetty.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.contextsmith.api.data.Conversation;
-import com.contextsmith.api.data.EmailMessage;
-import com.contextsmith.api.data.Messageable;
-import com.contextsmith.api.data.Project;
-import com.contextsmith.api.data.ProjectFactory;
-import com.contextsmith.email.cluster.EmailClusterer;
-import com.contextsmith.email.cluster.EmailClusterer.ClusteringMethod;
-import com.contextsmith.email.provider.GmailQueryBuilder;
-import com.contextsmith.email.provider.UserEventCrawler;
-import com.contextsmith.email.provider.UserInboxCrawler;
-import com.google.api.client.googleapis.json.GoogleJsonError;
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.common.base.Stopwatch;
+import javax.mail.internet.InternetAddress;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Path("newsfeed")
 public class NewsFeeder {
@@ -52,12 +51,59 @@ public class NewsFeeder {
 
     public static enum MessageType {EMAIL, EVENT}
 
+
+    /** Test curl:
+     * curl -X POST -H 'Content-Type:application/json' -d '{"email": "beders@contextsmith.onmicrosoft.com", "password": "askjochen:)" }' http://localhost:8888/newsfeed/auth
+     * @param body
+     * @return
+     */
+    @POST
+    @Path("auth")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public static String authenticate(String body) {
+        Source source = StringUtil.getGsonInstance().fromJson(body, Source.class);
+        Hope.that(source.email).named("email").isNotNullOrEmpty();
+        Hope.that(source.password).named("password").isNotNullOrEmpty();
+        Hope.that(source.kind).named("kind").isNotNull();
+
+        switch (source.kind) {
+            case exchange: return authenticateExchange(source);
+            default: return makeJsonError("Unsupported source:" + source.kind);
+        }
+    }
+
+    private static String authenticateExchange(Source source) {
+        try {
+            String url = source.url;
+            /** if (url == null) {
+             ExchangeService service = new ExchangeServiceProvider().unconnected(20_000);
+             log.debug("Auto-discovering URL for " +  source.email);
+             service.autodiscoverUrl(source.email, redirectionUrl -> redirectionUrl.toLowerCase().startsWith("https://"));
+             url = service.getUrl().toString();
+             }**/
+            ExchangeService service = new ExchangeServiceProvider().connectAsUser(source.email, source.password.toCharArray(), url, 10_000);
+            url = source.url == null ? service.getUrl().toString() : null;
+            return StringUtil.toJson(new AuthResult(true, null, url));
+        } catch (AutodiscoverUnauthorizedException aue) {
+            log.error("Invalid credentials", aue);
+            return StringUtil.toJson(new AuthResult(false, "Invalid credentials", null));
+        } catch (AutodiscoverLocalException e) {
+            log.error("Unable to auto-discover the URL");
+            return StringUtil.toJson(new AuthResult(false, "Unable to auto-discover the URL", "<unknown>"));
+        } catch (Exception e) {
+            log.error("Can't authenticate ", e);
+            return StringUtil.toJson(new AuthResult(false, e.getMessage(), null));
+            //return makeJsonError(e.getMessage());
+        }
+
+    }
+
     @POST
     @Path("cluster")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public static String clusterEmailsWithCredentials(
-            @QueryParam("token_emails") String tokenEmailJson,
             @QueryParam("max") Integer maxMessages,  // Optional
             @QueryParam("preview") Boolean showContent,  // Transient
             @QueryParam("time") Boolean parseTime,  // Transient
@@ -67,7 +113,11 @@ public class NewsFeeder {
             @QueryParam("after") Long startTimeInSec,  // Optional
             @QueryParam("before") Long endTimeInSec,  // Optional
             @QueryParam("in_domain") String internalDomain,  // Optional
-            @QueryParam("callback") String callbackUrl, @QueryParam("provider") String provider, String body) {
+            @QueryParam("callback") String callbackUrl, String body) {
+
+
+        SourceConfiguration config = StringUtil.getGsonInstance().fromJson(body, SourceConfiguration.class);
+
         // Set thread name at entry point.
         Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
 
@@ -80,78 +130,35 @@ public class NewsFeeder {
 
         final MessageType MSG_TYPE = MessageType.EMAIL;
 
-        return createResponse(MSG_TYPE, tokenEmailJson, null, null, null,
+        return createResponse(MSG_TYPE, null, null,
                 startTimeInSec, endTimeInSec, internalDomain,
                 maxMessages, showContent, parseTime, parseRequest,
                 posSentimentThreshold, negSentimentThreshold, null,
-                callbackUrl, provider, body);
+                callbackUrl, config);
     }
 
-    @GET
-    @Path("cluster")
-    @Produces(MediaType.APPLICATION_JSON)
-    public static String clusterEmails(
-            @QueryParam("token_emails") String tokenEmailJson,
-            @QueryParam("max") Integer maxMessages,  // Optional
-            @QueryParam("preview") Boolean showContent,  // Transient
-            @QueryParam("time") Boolean parseTime,  // Transient
-            @QueryParam("request") Boolean parseRequest,  // Transient
-            @QueryParam("pos_sentiment") Double posSentimentThreshold,
-            @QueryParam("neg_sentiment") Double negSentimentThreshold,
-            @QueryParam("after") Long startTimeInSec,  // Optional
-            @QueryParam("before") Long endTimeInSec,  // Optional
-            @QueryParam("in_domain") String internalDomain,  // Optional
-            @QueryParam("cluster_method") ClusteringMethod clusteringMethod,  // Optional
-            @QueryParam("callback") String callbackUrl,
-            @QueryParam("provider") String provider) {
-        // Set thread name at entry point.
-        Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
-
-        // Must have callback URL.
-        if (StringUtils.isBlank(callbackUrl)) {
-            return makeJsonError("Missing 'callback' parameter.");
-        } else if (!urlValidator.isValid(callbackUrl)) {
-            return makeJsonError("Invalid 'callback' parameter: " + callbackUrl);
-        }
-
-        final MessageType MSG_TYPE = MessageType.EMAIL;
-
-        return createResponse(MSG_TYPE, tokenEmailJson, null, null, null,
-                startTimeInSec, endTimeInSec, internalDomain,
-                maxMessages, showContent, parseTime, parseRequest,
-                posSentimentThreshold, negSentimentThreshold,
-                clusteringMethod, callbackUrl, provider, null);
-    }
-
-    @GET
-    @Path("create")
-    @Produces(MediaType.APPLICATION_JSON)
-    public static String createResponse(
-            @QueryParam("type") MessageType messageType,
-            @QueryParam("token_emails") String tokenEmailJson,
-            @QueryParam("query") String userQuery,  // Optional
-            @QueryParam("subject") String subjectToRetain,  // Optional
-            @QueryParam("ex_clusters") String externalClusterJson,  // Optional
-            @QueryParam("after") Long startTimeInSec,  // Optional
-            @QueryParam("before") Long endTimeInSec,  // Optional
-            @QueryParam("in_domain") String internalDomain,  // Optional
-            @QueryParam("max") Integer maxMessages,  // Transient
-            @QueryParam("preview") Boolean showContent,  // Transient
-            @QueryParam("time") Boolean parseTime,  // Transient
-            @QueryParam("request") Boolean parseRequest,  // Transient
-            @QueryParam("pos_sentiment") Double posSentimentThreshold,
-            @QueryParam("neg_sentiment") Double negSentimentThreshold,
-            @QueryParam("cluster_method") ClusteringMethod clusteringMethod,  // Optional
-            @QueryParam("callback") String callbackUrl, @QueryParam("provider") String provider, String body) {  // Optional
-
-        // Set thread name at entry point.
-        Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
+    static String createResponse(
+            MessageType messageType,
+            String userQuery,  // Optional
+            String subjectToRetain,  // Optional
+            Long startTimeInSec,  // Optional
+            Long endTimeInSec,  // Optional
+            String internalDomain,  // Optional
+            Integer maxMessages,  // Transient
+            Boolean showContent,  // Transient
+            Boolean parseTime,  // Transient
+            Boolean parseRequest,  // Transient
+            Double posSentimentThreshold,
+            Double negSentimentThreshold,
+            ClusteringMethod clusteringMethod,  // Optional
+            String callbackUrl, SourceConfiguration config) {  // Optional
 
         // Verify callback URL (if exist).
         if (StringUtils.isNotBlank(callbackUrl) &&
                 !urlValidator.isValid(callbackUrl)) {
             return makeJsonError("Invalid callback URL: " + callbackUrl);
         }
+
 
         final NewsFeederRequest request = new NewsFeederRequest();
         request.setMessageType(messageType);
@@ -167,22 +174,33 @@ public class NewsFeeder {
         request.setNegSentimentThreshold(negSentimentThreshold);
         request.setClusteringMethod(clusteringMethod);
         request.setSubjectToRetain(subjectToRetain);
-        try {
-            if (!StringUtils.isBlank(provider)) {
-                request.setProvider(NewsFeederRequest.Provider.valueOf(provider.toLowerCase()));
+
+        Optional<UncheckedValidationException> validationResult = Arrays.stream(config.sources).map(source -> {
+            try {
+                Hope.that(source.kind).named("kind").isNotNull();
+                switch (source.kind) {
+                    case exchange:
+                        Hope.that(source.email).named("email").isNotNullOrEmpty();
+                        Hope.that(source.password).named("password").isNotNullOrEmpty();
+                        break;
+                    case gmail:
+                        Hope.that(source.email).isNotNullOrEmpty();
+                        Hope.that(source.token).isNotNullOrEmpty();
+                        break;
+                    default:
+                        throw new UncheckedValidationException("Unknown kind");
+                }
+            } catch (UncheckedValidationException ue) {
+                return ue;
             }
-        } catch (IllegalArgumentException ex) {
-            return makeJsonError("Invalid provider parameter: " + provider);
+            return null;
+        }).filter(Objects::nonNull).findAny();
+        if (validationResult.isPresent()) {
+            return makeJsonError(validationResult.get().getMessage());
         }
         // Parsing jsons.
-        request.setCredentialsJson(body);
-        request.setExternalClustersFromJson(externalClusterJson);
-
-        if (!StringUtils.isBlank(tokenEmailJson)) {
-            request.setTokenEmailPairsFromJson(tokenEmailJson);
-        } else {
-            request.setTokenEmailPairs(Collections.emptyList());
-        }
+        request.setSourceConfiguration(config); // also sets external members
+        //request.setExternalClustersFromJson(externalClusterJson);
 
         // Verify user email and access token.
     /*if (request.getTokenEmailPairs() == null ||
@@ -246,15 +264,15 @@ public class NewsFeeder {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public static String gatherEventsWithCredentials(
-            @QueryParam("token_emails") String tokenEmailJson,
-            @QueryParam("ex_clusters") String externalClusterJson,
             @QueryParam("after") Long startTimeInSec,
             @QueryParam("before") Long endTimeInSec,
             @QueryParam("max") Integer maxMessages,  // Optional
-            @QueryParam("in_domain") String internalDomain,
-            @QueryParam("provider") String provider, String body) {
+            @QueryParam("in_domain") String internalDomain, String body) {
         // Set thread name at entry point.
         Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
+        SourceConfiguration config = StringUtil.getGsonInstance().fromJson(body, SourceConfiguration.class);
+        // must have external clusters set
+        Hope.that(config.rawExternalClusters).named("external_clusters").isNotNull();
 
         // Must have 'after' and 'before'.
         if (startTimeInSec == null) {
@@ -262,50 +280,19 @@ public class NewsFeeder {
         } else if (endTimeInSec == null) {
             return makeJsonError("Missing 'before' parameter.");
         }
-        String error = checkExternalCluster(externalClusterJson);
-        if (error != null) return error;
 
         final MessageType MSG_TYPE = MessageType.EVENT;
-        return createResponse(MSG_TYPE, tokenEmailJson, null, null, externalClusterJson,
+        return createResponse(MSG_TYPE, null, null,
                 startTimeInSec, endTimeInSec, internalDomain,
-                maxMessages, false, false, false, null, null, null, null, provider, body);
+                maxMessages, false, false, false, null, null, null, null, config);
     }
 
-    @GET
-    @Path("event")
-    @Produces(MediaType.APPLICATION_JSON)
-    public static String gatherEvents(
-            @QueryParam("token_emails") String tokenEmailJson,
-            @QueryParam("ex_clusters") String externalClusterJson,
-            @QueryParam("after") Long startTimeInSec,
-            @QueryParam("before") Long endTimeInSec,
-            @QueryParam("max") Integer maxMessages,  // Optional
-            @QueryParam("in_domain") String internalDomain) {
-        // Set thread name at entry point.
-        Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
-
-        // Must have 'after' and 'before'.
-        if (startTimeInSec == null) {
-            return makeJsonError("Missing 'after' parameter.");
-        } else if (endTimeInSec == null) {
-            return makeJsonError("Missing 'before' parameter.");
-        }
-        String error = checkExternalCluster(externalClusterJson);
-        if (error != null) return error;
-
-        final MessageType MSG_TYPE = MessageType.EVENT;
-        return createResponse(MSG_TYPE, tokenEmailJson, null, null, externalClusterJson,
-                startTimeInSec, endTimeInSec, internalDomain,
-                maxMessages, false, false, false, null, null, null, null, null, null);
-    }
 
     @GET
-    @Path("thread")
+    @Path("thread")  // unused?
     @Produces(MediaType.APPLICATION_JSON)
     public static String retrieveThread(
-            @QueryParam("token_emails") String tokenEmailJson,
             @QueryParam("subject") String subjectToRetain,
-            @QueryParam("ex_clusters") String externalClusterJson,
             @QueryParam("max") Integer maxMessages,  // Optional
             @QueryParam("time") Boolean parseTime,   // Optional
             @QueryParam("request") Boolean parseRequest,   // Optional
@@ -318,10 +305,6 @@ public class NewsFeeder {
         // Set thread name at entry point.
         Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
 
-        // Must have external members.
-        String error = checkExternalCluster(externalClusterJson);
-        if (error != null) return error;
-
         // Must have subject.
         if (StringUtils.isBlank(subjectToRetain)) {
             return makeJsonError("Missing 'subject' parameter.");
@@ -329,18 +312,17 @@ public class NewsFeeder {
 
         final MessageType MSG_TYPE = MessageType.EMAIL;
         final boolean SHOW_CONTENT = true;
-        return createResponse(MSG_TYPE, tokenEmailJson, null, subjectToRetain,
-                externalClusterJson, startTimeInSec, endTimeInSec,
+        return createResponse(MSG_TYPE, null, subjectToRetain,
+                startTimeInSec, endTimeInSec,
                 internalDomain, maxMessages, SHOW_CONTENT, parseTime,
                 parseRequest, posSentimentThreshold,
-                negSentimentThreshold, null, null, provider, null);
+                negSentimentThreshold, null, null, null);
     }
 
-    @GET
+    @POST
     @Path("search")
     @Produces(MediaType.APPLICATION_JSON)
     public static String searchEmails(
-            @QueryParam("token_emails") String tokenEmailJson,
             @QueryParam("max") Integer maxMessages,  // Optional
             @QueryParam("query") String searchQuery,  // Optional
             @QueryParam("time") Boolean parseTime,   // Optional
@@ -350,18 +332,19 @@ public class NewsFeeder {
             @QueryParam("after") Long startTimeInSec,  // Optional
             @QueryParam("before") Long endTimeInSec,  // Optional
             @QueryParam("in_domain") String internalDomain,  // Optional
-            @QueryParam("ex_clusters") String externalClusterJson,
-            @QueryParam("provider") String provider) {  // Optional
+            String body) {  // Optional
         // Set thread name at entry point.
         Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
 
+        SourceConfiguration config = StringUtil.getGsonInstance().fromJson(body, SourceConfiguration.class);
+
         final MessageType MSG_TYPE = MessageType.EMAIL;
         final boolean SHOW_CONTENT = true;
-        return createResponse(MSG_TYPE, tokenEmailJson, searchQuery, null,
-                externalClusterJson, startTimeInSec, endTimeInSec,
+        return createResponse(MSG_TYPE, searchQuery, null,
+                startTimeInSec, endTimeInSec,
                 internalDomain, maxMessages, SHOW_CONTENT, parseTime,
                 parseRequest, posSentimentThreshold,
-                negSentimentThreshold, null, null, provider, null);
+                negSentimentThreshold, null, null, config);
     }
 
     protected static String processRequest(NewsFeederRequest request) {
@@ -430,37 +413,32 @@ public class NewsFeeder {
             subjectRetainPattern = Pattern.compile("^\\Q" + subjectToRetain + "\\E$");
             subjectQuery = String.format("subject:\"%s\"", subjectToRetain);
         }
-        List<InternetAddress> aliases = new ArrayList<>();
         UserInboxCrawler inboxCrawler = new UserInboxCrawler(accessToken -> new GoogleServiceProvider(accessToken), () -> new ExchangeServiceProvider());
-        switch (request.getProvider()) {
-            case gmail: {
-                String gmailQuery = new GmailQueryBuilder()
-                        .addQuery(request.getUserQuery())
-                        .addQuery(subjectQuery)
-                        .addBeforeDate(request.getEndTimeInSec())
-                        .addAfterDate(request.getStartTimeInSec())
-                        .addClusters(request.getExternalClusters())
-                        .build();
 
-                for (TokenEmailPair tokenEmailPair : request.getTokenEmailPairs()) {
-                    inboxCrawler.addGmailTask(gmailQuery,
-                            tokenEmailPair.getAccessToken(),
-                            tokenEmailPair.getEmailStr(),
-                            request.getMaxMessages());
-                    aliases.add(tokenEmailPair.getEmailAddress()); // needed for clustering later
+        String finalSubjectQuery = subjectQuery; // needed for lambda
+        List<InternetAddress> aliases = Arrays.stream(request.getSourceConfiguration().sources).map(source -> {
+            switch (source.kind) {
+                case gmail: {
+                    String gmailQuery = new GmailQueryBuilder()
+                            .addQuery(request.getUserQuery())
+                            .addQuery(finalSubjectQuery)
+                            .addBeforeDate(request.getEndTimeInSec())
+                            .addAfterDate(request.getStartTimeInSec())
+                            .addClusters(request.getExternalClusters())
+                            .build();
+                    inboxCrawler.addGmailTask(gmailQuery, source.token, source.email, request.getMaxMessages());
+                    return source.getEmailAddress(); // needed for clustering later
                 }
-                break;
-            }
-            case exchange: {
-                String exchangeQuery = request.hasTimeFilter() ? new AQSBuilder().sentBetween(new Date(request.getStartTimeInSec()), new Date(request.getEndTimeInSec())).toQuery()
-                        : "";
-                for (Credential cred : request.getCredentials()) {
-                    inboxCrawler.addExchangeTask(exchangeQuery, cred, request.getMaxMessages());
-                    aliases.add(cred.getEmailAddress());
+                case exchange: {
+                    String exchangeQuery = request.hasTimeFilter() ? new AQSBuilder().sentBetween(new Date(request.getStartTimeInSec()), new Date(request.getEndTimeInSec())).toQuery()
+                            : "";
+
+                    inboxCrawler.addExchangeTask(exchangeQuery, source, request.getExternalClusters(), request.getMaxMessages());
+                    return source.getEmailAddress();
                 }
-                break;
             }
-        }
+            return null;
+        }).collect(Collectors.toList());
 
         Set<Project> projects = new TreeSet<>();
         // Throws GoogleJsonResponseException
@@ -491,14 +469,7 @@ public class NewsFeeder {
         ProjectFactory projectFactory = new ProjectFactory();
         projectFactory.loadMessages(inboxCrawler.getMessages());
 
-        for (int i = 0; i < externalClusters.size(); ++i) {
-            Set<InternetAddress> externalCluster = externalClusters.get(i);
-            log.debug("Creating project #{}...", i + 1);
-            Project project = projectFactory.createProject(
-                    request.getInternalDomain(),
-                    externalCluster);
-            if (project != null) projects.add(project);
-        }
+        createProjects(request, projects, externalClusters, projectFactory);
 
         // Post-processing.
         if (request.isShowContent()) {
@@ -507,6 +478,17 @@ public class NewsFeeder {
             log.info("E-mail content processing time: {}", processWatch);
         }
         return projects;
+    }
+
+    private static void createProjects(NewsFeederRequest request, Set<Project> projects, List<Set<InternetAddress>> externalClusters, ProjectFactory projectFactory) {
+        for (int i = 0; i < externalClusters.size(); ++i) {
+            Set<InternetAddress> externalCluster = externalClusters.get(i);
+            log.debug("Creating project #{}...", i + 1);
+            Project project = projectFactory.createProject(
+                    request.getInternalDomain(),
+                    externalCluster);
+            if (project != null) projects.add(project);
+        }
     }
 
     // Should not return 'null'.
@@ -526,27 +508,24 @@ public class NewsFeeder {
             return projects;
         }
 
-        List<InternetAddress> aliases = new ArrayList<>();
         UserEventCrawler eventCrawler = new UserEventCrawler(accessToken -> new GoogleServiceProvider(accessToken), () -> new ExchangeServiceProvider());
-        switch (request.getProvider()) {
-            case gmail: {
-                for (TokenEmailPair tokenEmailPair : request.getTokenEmailPairs()) {
-                    eventCrawler.addGmailTask(tokenEmailPair.getAccessToken(),
-                            tokenEmailPair.getEmailStr(),
+        List<InternetAddress> aliases = Arrays.stream(request.getSourceConfiguration().sources).map(source -> {
+            switch (source.kind) {
+                case gmail: {
+                    eventCrawler.addGmailTask(source.token,
+                            source.email,
                             request.getStartTimeInSec(),
                             request.getEndTimeInSec(),
                             request.getMaxMessages());
-                    aliases.add(tokenEmailPair.getEmailAddress()); // needed for clustering later
+                    return source.getEmailAddress(); // needed for clustering later
                 }
-                break;
-            }
-            case exchange: {
-                for (Credential cred : request.getCredentials()) {
-                    eventCrawler.addExchangeTask(cred, request.getStartTimeInSec() * 1000L, request.getEndTimeInSec() * 1000, request.getMaxMessages());
-                    aliases.add(cred.getEmailAddress());
+                case exchange: {
+                    eventCrawler.addExchangeTask(source, request.getStartTimeInSec() * 1000L, request.getEndTimeInSec() * 1000, request.getMaxMessages());
+                    return source.getEmailAddress();
                 }
             }
-        }
+            return null;
+        }).collect(Collectors.toList());
         // Throws GoogleJsonResponseException
         eventCrawler.startCrawl();
         if (eventCrawler.getMessages() == null ||
@@ -563,15 +542,7 @@ public class NewsFeeder {
         ProjectFactory projectFactory = new ProjectFactory();
         projectFactory.loadMessages(eventCrawler.getMessages());
 
-        for (int i = 0; i < externalClusters.size(); ++i) {
-            Set<InternetAddress> externalCluster = externalClusters.get(i);
-            log.debug("Creating project #{}...", i + 1);
-
-            Project project = projectFactory.createProject(
-                    request.getInternalDomain(),
-                    externalCluster);
-            if (project != null) projects.add(project);
-        }
+        createProjects(request, projects, externalClusters, projectFactory);
         return projects;
     }
 

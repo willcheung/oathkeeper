@@ -35,8 +35,8 @@ import com.google.gson.JsonSerializationContext;
 import com.google.gson.JsonSerializer;
 
 public class StringUtil {
-  private static final Logger log = LoggerFactory.getLogger(StringUtil.class);
   public static final String EN_STOPWORD_PATH = "en-stopwords.txt";
+  private static final Logger log = LoggerFactory.getLogger(StringUtil.class);
   private static Set<String> enStopwords = null;
   private static Gson gson = null;
   private static ObjectMapper jackson = null;

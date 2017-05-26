@@ -7,7 +7,7 @@ import java.util.Set;
 import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
 
-import org.apache.logging.log4j.util.Strings;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,13 +83,13 @@ public class EventMessage extends AbstractMessage {
     if (attendees != null && !attendees.isEmpty()) {
       this.to = enResolver.resolve(attendees);
     }
-    if (Strings.isNotBlank(event.getSummary())) {
+    if (StringUtils.isNotBlank(event.getSummary())) {
       this.subject = event.getSummary();
     }
-    if (Strings.isNotBlank(event.getLocation())) {
+    if (StringUtils.isNotBlank(event.getLocation())) {
       this.location = event.getLocation();
     }
-    if (Strings.isNotBlank(event.getDescription())) {
+    if (StringUtils.isNotBlank(event.getDescription())) {
       this.plainText = event.getDescription();
     }
     return this;

@@ -11,7 +11,6 @@ import javax.mail.internet.InternetAddress;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.validator.routines.EmailValidator;
-import org.apache.logging.log4j.util.Strings;
 
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.Multiset;
@@ -98,7 +97,7 @@ public class InternetAddressUtil {
 
   public static InternetAddress newIAddress(String address, String personal) {
     try {
-      if (Strings.isBlank(personal)) {
+      if (StringUtils.isBlank(personal)) {
         return new InternetAddress(address);
       } else {
         return new InternetAddress(address, personal);

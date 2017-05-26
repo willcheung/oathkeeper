@@ -10,9 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import javax.mail.MessagingException;
 import javax.mail.Session;
@@ -42,7 +40,8 @@ public class BatchEmailFetcher {
   public static final int MAX_GMAIL_ID_FETCHING_RETRIES = 2;
   public static final int MAX_GMAIL_MSG_FETCHING_RETRIES = 2;
   public static final int MAX_CONCURRENT_THREADS = 4;
-  public static final long MIN_MILLIS_BETWEEN_BATCH_REQUEST = 1_000;  // 1 sec.
+  public static final long MIN_MILLIS_BETWEEN_BATCH_REQUEST = 1_000;  // 1 sec. - to prevent getting rejected by Google API
+  public static final Properties PROPS = new Properties();
 
   private static List<Message> findUnfetchedGmailMessages(
       List<Message> emailsToFetch,
@@ -78,7 +77,7 @@ public class BatchEmailFetcher {
           throws IOException {
         byte[] emailBytes = Base64.decodeBase64(message.getRaw());
         InputStream is = new ByteArrayInputStream(emailBytes);
-        Session session = Session.getDefaultInstance(new Properties(), null);
+        Session session = Session.getDefaultInstance(PROPS, null);
         MimeMessage mimeMessage = null;
 
         try {
@@ -98,15 +97,16 @@ public class BatchEmailFetcher {
         // Important: Ensures thread-safe!
         synchronized (mimeMessages) {
           mimeMessages.add(mimeMessage);
-        }
-        if (mimeMessages.size() % MAX_REQUEST_PER_BATCH == 0 ||
-            mimeMessages.size() == maxMessages) {
-          log.debug(String.format(
-              "[%d%%] %d/%d fetched @ %.1f emails/sec. %s",
-              Math.round(100.0 * mimeMessages.size() / maxMessages),
-              mimeMessages.size(), maxMessages,
-              1000.0 * mimeMessages.size() / stopwatch.elapsed(TimeUnit.MILLISECONDS),
-              ProcessUtil.getHeapConsumption()));
+
+          if (mimeMessages.size() % MAX_REQUEST_PER_BATCH == 0 ||  // moved it into synchronized block
+                  mimeMessages.size() == maxMessages) {
+            log.debug(String.format(
+                    "[%d%%] %d/%d fetched @ %.1f emails/sec. %s",
+                    Math.round(100.0 * mimeMessages.size() / maxMessages),
+                    mimeMessages.size(), maxMessages,
+                    1000.0 * mimeMessages.size() / stopwatch.elapsed(TimeUnit.MILLISECONDS),
+                    ProcessUtil.getHeapConsumption()));
+          }
         }
       }
     };
@@ -217,19 +217,36 @@ public class BatchEmailFetcher {
 
     // Create callback.
     final List<MimeMessage> mimeMessages = new ArrayList<MimeMessage>();
+    // callback received all Messages, converts it to MimeMessage and adds it to mimeMessages
     JsonBatchCallback<Message> callback = makeJsonBatchCallback(
         mimeMessages, messages.size(), Stopwatch.createStarted());
 
     int numThreads = Math.min(Runtime.getRuntime().availableProcessors(),
         MAX_CONCURRENT_THREADS);
-    BatchRequestRunnable[] runnables = new BatchRequestRunnable[numThreads];
-    BatchRequestRunnable currRunnable = findAvailableBatchRequestRunnable(runnables);
+    //BatchRequestRunnable[] runnables = new BatchRequestRunnable[numThreads];
+    BlockingQueue<BatchRequestRunnable> bq = new ArrayBlockingQueue<>(numThreads);
+    for (int i = 0; i < numThreads; i++ ) {
+      BatchRequest batchRequest = this.gmailService.batch();
+      bq.add(new BatchRequestRunnable(batchRequest){
+        @Override
+        public void run() {
+          super.run();
+          try {
+            bq.put(this);
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
+        }
+      });
+    }
+
     ExecutorService executorService = Executors.newFixedThreadPool(
         numThreads,
         new ThreadFactoryBuilder().setNameFormat(
             Thread.currentThread().getName() + ".%d").build());
 
     try {
+      BatchRequestRunnable currRunnable = bq.take(); //findAvailableBatchRequestRunnable(runnables);
       // Batch all mail requests.
       for (int i = 0; i < messages.size(); ++i) {
         this.gmailService.users()
@@ -242,11 +259,12 @@ public class BatchEmailFetcher {
           // Start fetching mails in the background.
           executorService.execute(currRunnable);
           Thread.sleep(MIN_MILLIS_BETWEEN_BATCH_REQUEST);
-          currRunnable = findAvailableBatchRequestRunnable(runnables);
+          currRunnable = bq.take();//findAvailableBatchRequestRunnable(runnables);
         }
       }
       executorService.shutdown();
-      waitForAllRunnables(runnables);  // Make sure all runnables are done.
+      executorService.awaitTermination(1, TimeUnit.HOURS);
+      //waitForAllRunnables(runnables);  // Make sure all runnables are done.
     } catch (IOException | InterruptedException e) {
       log.error(e.toString());
       e.printStackTrace();

@@ -48,7 +48,8 @@ public class ProcessRequestCallable implements Callable<String> {
         return true;
       }
     } catch (IOException e) {
-      log.error(e.toString());
+      log.error("Unable to send callback request", e);
+
       e.printStackTrace();
     }
     return false;

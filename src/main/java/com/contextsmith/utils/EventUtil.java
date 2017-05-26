@@ -69,7 +69,9 @@ public class EventUtil {
 
   public static ZonedDateTime toZonedDateTime(DateTime dt) {
     Instant i = Instant.ofEpochMilli(dt.getValue());
-    ZoneOffset offset = ZoneOffset.ofHoursMinutes(0, dt.getTimeZoneShift());
+
+    ZoneOffset offset = ZoneOffset.ofTotalSeconds(dt.getTimeZoneShift() * 60);
+    // = ZoneOffset.ofHoursMinutes(0, dt.getTimeZoneShift()); <-- can fail with Zone offset minutes not in valid range: abs(value) 420 is not in the range 0 to 59
     return ZonedDateTime.ofInstant(i, offset);
   }
 

@@ -11,13 +11,12 @@ import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 
-import org.apache.logging.log4j.util.Strings;
-
 import com.contextsmith.email.cluster.EmailNameResolver;
 import com.contextsmith.nlp.annotator.Annotation;
 import com.contextsmith.nlp.sentiment.SentimentItem;
 import com.contextsmith.nlp.time.TemporalItem;
 import com.contextsmith.utils.MimeMessageUtil;
+import org.apache.commons.lang3.StringUtils;
 
 public class EmailMessage extends AbstractMessage {
   private ZonedDateTime sentDate;
@@ -81,7 +80,7 @@ public class EmailMessage extends AbstractMessage {
       throw new MessagingException();
     }
 
-    if (Strings.isNotBlank(message.getSubject())) {
+    if (StringUtils.isNotBlank(message.getSubject())) {
       this.subject = message.getSubject();
     }
     this.plainText = MimeMessageUtil.extractPlainText(message);

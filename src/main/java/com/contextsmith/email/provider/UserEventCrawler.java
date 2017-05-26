@@ -16,9 +16,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.Supplier;
 
 import javax.mail.MessagingException;
 
+import com.contextsmith.api.service.Source;
+import com.contextsmith.email.provider.exchange.EventProducer;
+import com.contextsmith.email.provider.exchange.ExchangeServiceProvider;
+import microsoft.exchange.webservices.data.core.ExchangeService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,15 +100,13 @@ public class UserEventCrawler {
     return events;
   }
 
-  public static List<Event> fetchEvents(String accessToken, long startTime,
+  public static List<Event> fetchEvents(final GoogleServiceProvider service, long startTime,
                                         long endTime, int maxEvents)
       throws IOException {
-    checkNotNull(accessToken);
 
     Stopwatch stopwatch = Stopwatch.createStarted();
     log.info("Fetching max {} events", maxEvents);
 
-    GoogleServiceProvider service = new GoogleServiceProvider(accessToken);
     List<Event> events = fetchEvents(service.getCalendarService(), startTime,
                                      endTime, maxEvents);
     log.info("Fetching events took: {}", stopwatch);
@@ -158,27 +162,31 @@ public class UserEventCrawler {
     return idToEventMap.values();
   }
 
+  private Function<String, GoogleServiceProvider> googleServiceProvider;
+  private Supplier<ExchangeServiceProvider> exchangeServiceProvider;
   private Collection<Messageable> messages;
   private EmailNameResolver enResolver;
   private ExecutorService executor;
   private Set<Callable<List<Event>>> callables;
 
-  public UserEventCrawler() {
-    this.executor = Executors.newCachedThreadPool(
-        new ThreadFactoryBuilder().setNameFormat(
-            Thread.currentThread().getName() + ".%d").build());
-    this.callables = new HashSet<>();
-    this.enResolver = new EmailNameResolver();
-    this.messages = new ArrayList<>();
+  public UserEventCrawler(Function<String, GoogleServiceProvider> googleServiceProvider, Supplier<ExchangeServiceProvider> exchangeServiceProvider) {
+      this.googleServiceProvider = googleServiceProvider;
+      this.exchangeServiceProvider = exchangeServiceProvider;
+      this.executor = Executors.newCachedThreadPool(
+              new ThreadFactoryBuilder().setNameFormat(
+                      Thread.currentThread().getName() + ".%d").build());
+      this.callables = new HashSet<>();
+      this.enResolver = new EmailNameResolver();
+      this.messages = new ArrayList<>();
   }
 
-  public void addTask(final String accessToken, final String email,
-                      final long startTime, final long endTime,
-                      final int maxEvents) {
+  public void addGmailTask(final String accessToken, final String email,
+                           final long startTime, final long endTime,
+                           final int maxEvents) {
     this.callables.add(new Callable<List<Event>>() {
       @Override
       public List<Event> call() throws Exception {
-        List<Event> events = fetchEvents(accessToken, startTime, endTime, maxEvents);
+        List<Event> events = fetchEvents(googleServiceProvider.apply(accessToken), startTime, endTime, maxEvents);
         if (events == null) return null;
 
         // Insert user's email address into Event.
@@ -197,6 +205,34 @@ public class UserEventCrawler {
         return events;
       }
     });
+  }
+
+  public void addExchangeTask(Source source, final long startDate, final long endDate, int maxEvents) {
+      this.callables.add(() -> {
+          ExchangeService exchangeService = exchangeServiceProvider.get().connectAsUser(source.email, source.password.toCharArray(), source.url);
+          EventProducer producer = new EventProducer(exchangeService).maxMessages(maxEvents).startDate(startDate).endDate(endDate);
+          Runtime runtime = Runtime.getRuntime();
+          long usedMemoryBefore = runtime.totalMemory() - runtime.freeMemory();
+          System.out.println("Used Memory before: " + usedMemoryBefore / 1_000_000);
+          long startTime = System.currentTimeMillis();
+
+          List<Event> events = producer.asFlux().map(event -> {
+              @SuppressWarnings("unchecked")
+              List<String> sources = (List<String>) event.get(MimeMessageUtil.SOURCE_INBOX_HEADER);
+              if (sources == null) {
+                  sources = new ArrayList<>();
+                  event.set(MimeMessageUtil.SOURCE_INBOX_HEADER, sources);
+              }
+              sources.add(source.email);
+              return event;
+          }).collectList().block();
+
+          System.out.println("Received " + events.size() + " events");
+          long usedMemoryAfter = runtime.totalMemory() - runtime.freeMemory();
+          System.out.println("Memory increased: " + (usedMemoryAfter - usedMemoryBefore) / 1_000_000);
+          System.out.println("Duration (s): " + (System.currentTimeMillis() - startTime) / 1000.0);
+          return events;
+      });
   }
 
   public EmailNameResolver getEnResolver() {

@@ -1,9 +1,13 @@
 package com.contextsmith.api.service;
 
+import java.io.IOException;
 import java.util.EnumSet;
+import java.util.logging.LogManager;
 
 import javax.servlet.DispatcherType;
 
+import com.contextsmith.utils.Environment;
+import com.contextsmith.utils.Mode;
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.FilterHolder;
@@ -12,7 +16,6 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.mortbay.servlet.GzipFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.bridge.SLF4JBridgeHandler;
 
 import com.contextsmith.utils.ProcessUtil;
 
@@ -22,8 +25,9 @@ public class ServerMain {
   private static final Logger log = LoggerFactory.getLogger(ServerMain.class);
 
   public static void main(String[] args) throws Exception {
+    initLogging();
     int port = getPortOrDie(args);
-    sendJavaUtilLoggerToSLF4J();
+    //sendJavaUtilLoggerToSLF4J();
     SysOutOverSLF4J.sendSystemOutAndErrToSLF4J();
 
     ServletContextHandler contextHandler = new ServletContextHandler(
@@ -55,8 +59,8 @@ public class ServerMain {
 
     // Tells the Jersey Servlet which REST service/class to load.
     servlet.setInitParameter(
-        "jersey.config.server.provider.classnames",
-        NewsFeeder.class.getCanonicalName());
+        "jersey.config.server.provider.packages",
+        NewsFeeder.class.getPackage().getName());
 
     try {
       server.start();
@@ -64,6 +68,17 @@ public class ServerMain {
     } finally {
       server.destroy();
     }
+  }
+
+  private static void initLogging() throws IOException {
+    Mode m = Environment.mode;
+
+    String logPath =
+            m == Mode.production ? "/logging.properties" :
+            m == Mode.dev ? "/logging-dev.properties" :
+                    "/logging-test.properties";
+
+    LogManager.getLogManager().readConfiguration(ServerMain.class.getResourceAsStream(logPath));
   }
 
   // Get port from command line first, then system environment.
@@ -88,7 +103,7 @@ public class ServerMain {
     return port;
   }
 
-  private static void sendJavaUtilLoggerToSLF4J() {
+  /*private static void sendJavaUtilLoggerToSLF4J() {
     java.util.logging.LogManager.getLogManager().reset();
 
     // Optionally remove existing handlers attached to j.u.l root logger
@@ -100,5 +115,5 @@ public class ServerMain {
 
     java.util.logging.Logger.getLogger("global").setLevel(
         java.util.logging.Level.FINEST);
-  }
+  }*/
 }

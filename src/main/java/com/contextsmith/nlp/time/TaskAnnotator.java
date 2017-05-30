@@ -34,7 +34,7 @@ public class TaskAnnotator extends AbstractAnnotator {
   public static final Pattern ENDS_WITH_POSITIVE_WORDS = Pattern.compile(
       "(?i)\\b(good|nice|excellent|wonderful)\\s+$");
   public static final Pattern IS_MEETING_REQUEST = Pattern.compile(
-      "(?i)\\b(?:(un)?availab(le|ility)|connect|meet(ing)?|schedule)\\b");
+      "(?i)\\b(?:(un)?availab(le|ility)|connect|meet(ing)?|schedule|(re)?schedule)\\b");
   public static final Pattern IS_PROMISE_REQUEST = Pattern.compile(
       "(?i)\\b(?:will|\\w+'ll|should)\\b");
   public static final Pattern IS_PRESENT_PART_REQUEST = Pattern.compile(
@@ -56,7 +56,7 @@ public class TaskAnnotator extends AbstractAnnotator {
   public static void main(String[] args) throws ParseException {
 //    interactiveRun(getInstance());
 
-    String mailDateStr = "Sat, 27 Feb 2016 16:38:35 -0500";
+    String mailDateStr = "27 Feb 2016 16:38:35 -0500";
     ZonedDateTime baseDate = ZonedDateTime.from(
         MimeMessageUtil.MAIL_DATE_FORMATTER.parse(mailDateStr));
 

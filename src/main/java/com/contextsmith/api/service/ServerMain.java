@@ -28,7 +28,7 @@ public class ServerMain {
     initLogging();
     int port = getPortOrDie(args);
     //sendJavaUtilLoggerToSLF4J();
-    SysOutOverSLF4J.sendSystemOutAndErrToSLF4J();
+    //SysOutOverSLF4J.sendSystemOutAndErrToSLF4J();
 
     ServletContextHandler contextHandler = new ServletContextHandler(
         ServletContextHandler.NO_SESSIONS);

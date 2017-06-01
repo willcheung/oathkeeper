@@ -90,7 +90,7 @@
                     <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
-            <!-- <plugin>
+            <!-- <plugin>D
               <groupId>com.heroku.sdk</groupId>
               <artifactId>heroku-maven-plugin</artifactId>
               <version>0.5.6</version>
@@ -340,7 +340,7 @@
         <dependency>
             <groupId>com.joestelmach</groupId>
             <artifactId>natty</artifactId>
-            <version>0.12</version>
+            <version>0.13</version>
         </dependency>
         <dependency>
             <groupId>org.apache.opennlp</groupId>
@@ -355,7 +355,7 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-logging</artifactId>
-            <version>1.0.1</version>
+            <version>1.0.2</version>
         </dependency>
         <dependency>
             <groupId>com.martiansoftware</groupId>

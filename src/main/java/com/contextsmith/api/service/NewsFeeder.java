@@ -18,6 +18,9 @@ import com.martiansoftware.validation.UncheckedValidationException;
 import microsoft.exchange.webservices.data.autodiscover.exception.AutodiscoverLocalException;
 import microsoft.exchange.webservices.data.autodiscover.exception.AutodiscoverUnauthorizedException;
 import microsoft.exchange.webservices.data.core.ExchangeService;
+import microsoft.exchange.webservices.data.core.enumeration.search.ResolveNameSearchLocation;
+import microsoft.exchange.webservices.data.core.service.item.Contact;
+import microsoft.exchange.webservices.data.misc.NameResolutionCollection;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.validator.routines.EmailValidator;
@@ -76,15 +79,23 @@ public class NewsFeeder {
     private static String authenticateExchange(Source source) {
         try {
             String url = source.url;
-            /** if (url == null) {
-             ExchangeService service = new ExchangeServiceProvider().unconnected(20_000);
-             log.debug("Auto-discovering URL for " +  source.email);
-             service.autodiscoverUrl(source.email, redirectionUrl -> redirectionUrl.toLowerCase().startsWith("https://"));
-             url = service.getUrl().toString();
-             }**/
+
             ExchangeService service = new ExchangeServiceProvider().connectAsUser(source.email, source.password.toCharArray(), url, 10_000);
             url = source.url == null ? service.getUrl().toString() : null;
-            return StringUtil.toJson(new AuthResult(true, null, url));
+            // get user information
+            NameResolutionCollection resolutions = service.resolveName(source.email, ResolveNameSearchLocation.DirectoryOnly, true);
+            com.contextsmith.api.data.Contact contact = null;
+            if (resolutions.getCount() > 0) {
+                Contact msContact = resolutions.iterator().next().getContact();
+                if (msContact != null) {
+                    contact = new com.contextsmith.api.data.Contact();
+                    contact.givenName = msContact.getGivenName();
+                    contact.surName = msContact.getSurname();
+                    contact.jobTitle = msContact.getJobTitle();
+                }
+            }
+
+            return StringUtil.toJson(new AuthResult(true, null, url, contact));
         } catch (AutodiscoverUnauthorizedException aue) {
             log.error("Invalid credentials", aue);
             return StringUtil.toJson(new AuthResult(false, "Invalid credentials", null));

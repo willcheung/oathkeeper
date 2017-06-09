@@ -94,13 +94,11 @@ public class DateTimeAnnotator extends AbstractAnnotator {
     TimeZone timeZone = (baseDate == null) ?
         TimeZone.getDefault() : TimeZone.getTimeZone(baseDate.getZone());
 
-    synchronized(this.parser) {
-      CalendarSource.setBaseDate(instant);  // Thread-specific.
-      setParserTimeZone(timeZone);
-      try {
-        groups = this.parser.parse(parent.getText());
-      } catch (Exception e) {  // Ignore all exceptions.
-      }
+    setParserTimeZone(timeZone);
+    try {
+      groups = this.parser.parse(parent.getText(), instant);
+
+    } catch (Exception e) {  // Ignore all exceptions.
     }
 
     List<Annotation> annotations = new ArrayList<>();

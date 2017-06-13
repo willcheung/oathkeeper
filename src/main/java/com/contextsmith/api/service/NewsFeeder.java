@@ -255,8 +255,11 @@ public class NewsFeeder {
             request.setInternalDomain(internalDomain);
         } else if (StringUtils.isNotBlank(tokenEmailDomain)) {
             request.setInternalDomain(tokenEmailDomain);
-        } else {
-            return makeJsonError("Missing company's internal domain.");
+        } else  {
+            // extract internal domain from first source in request
+            String intDomain = InternetAddressUtil.getAddressDomain(request.getSourceConfiguration().sources[0].email);
+            request.setInternalDomain(intDomain);
+            //return makeJsonError("Missing company's internal domain.");
         }
         log.info("[{}] sent a request: {}", request.getInternalDomain(), request.toString());
 

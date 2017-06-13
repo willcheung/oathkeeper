@@ -174,6 +174,7 @@ public class Args {
 
         void reset() {
             current = 0;
+            arg = allArgs[current];
         }
     }
 }

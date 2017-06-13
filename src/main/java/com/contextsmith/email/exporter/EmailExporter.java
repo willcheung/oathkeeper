@@ -37,7 +37,7 @@ public class EmailExporter {
                 .on("--dir", value -> dir = Paths.get(value));
 
         Hope.that(source.kind).isNotNull();
-        Hope.that(dir).named("Destination").isNotNull().isTrue(p -> p.toFile().exists());
+        Hope.that(dir).named("Destination").isNotNull().isTrue(p -> p.toFile().isDirectory());
         export();
     }
 

@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>contextsmith</groupId>
     <artifactId>contextsmith</artifactId>
-    <version>0.3.7</version>
+    <version>0.3.7-SNAPSHOT</version>
 
     <repositories>
         <repository>
@@ -90,7 +90,7 @@
                     <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
-            <!-- <plugin>D
+            <!-- <plugin>
               <groupId>com.heroku.sdk</groupId>
               <artifactId>heroku-maven-plugin</artifactId>
               <version>0.5.6</version>

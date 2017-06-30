@@ -1,5 +1,7 @@
 package com.contextsmith.email.provider.exchange;
 
+import com.contextsmith.api.service.NewsFeederRequest;
+import com.contextsmith.utils.MimeMessageUtil;
 import microsoft.exchange.webservices.data.core.ExchangeService;
 import microsoft.exchange.webservices.data.core.PropertySet;
 import microsoft.exchange.webservices.data.core.enumeration.property.BodyType;
@@ -104,7 +106,8 @@ public class MimeMessageProducer {
         }
         String mimeType = msg.getBody().getBodyType() == BodyType.HTML ? "text/html" : "text/plain";
         mime.addHeader("Message-ID", msg.getInternetMessageId());
-        mime.addHeader("X-Private-ID", msg.getId() != null ? msg.getId().getUniqueId() : "");
+        mime.addHeader(MimeMessageUtil.X_PRIVATE_ID, msg.getId() != null ? msg.getId().getUniqueId() : "");
+        mime.addHeader(MimeMessageUtil.X_SOURCE, NewsFeederRequest.Provider.exchange.toString());
 
         mime.setContent(msg.getBody().toString(), mimeType);
         mime.saveChanges();

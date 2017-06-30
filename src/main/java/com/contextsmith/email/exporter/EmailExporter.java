@@ -2,11 +2,14 @@ package com.contextsmith.email.exporter;
 
 import com.contextsmith.api.service.NewsFeederRequest;
 import com.contextsmith.api.service.Source;
+import com.contextsmith.email.provider.GoogleServiceProvider;
+import com.contextsmith.email.provider.UserInboxCrawler;
 import com.contextsmith.email.provider.exchange.ExchangeServiceProvider;
 import com.contextsmith.email.provider.exchange.MimeMessageProducer;
 import com.contextsmith.utils.Args;
 import com.martiansoftware.validation.Hope;
 import microsoft.exchange.webservices.data.core.ExchangeService;
+import reactor.core.publisher.Flux;
 
 import javax.mail.MessagingException;
 import javax.mail.internet.MimeMessage;
@@ -18,7 +21,10 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
+
+import static com.contextsmith.api.service.NewsFeederRequest.Provider.exchange;
 
 /**
  * Created by beders on 6/3/17.
@@ -26,6 +32,7 @@ import java.util.UUID;
 public class EmailExporter {
     Source source;
     Path dir;
+    int max = Integer.MAX_VALUE;
 
     public EmailExporter(String... args) throws Exception {
         source = new Source();
@@ -33,17 +40,26 @@ public class EmailExporter {
                 .on("--kind", value -> source.kind = NewsFeederRequest.Provider.valueOf(value))
                 .on("--email", value -> source.email = value)
                 .on("--password", value -> source.password = value)
+                .on("--accesskey", value -> source.password = value)
+                .on("--max", value -> max = Integer.parseInt(value))
                 .on("--url", value -> source.url = value)
                 .on("--dir", value -> dir = Paths.get(value));
 
         Hope.that(source.kind).isNotNull();
         Hope.that(dir).named("Destination").isNotNull().isTrue(p -> p.toFile().isDirectory());
-        export();
+        Flux<MimeMessage> msgs = source.kind == exchange ? exportExchange() : exportGmail();
+        msgs.map(this::toPath).collectList().block();
     }
 
-    private void export() throws Exception {
+    private Flux<MimeMessage> exportGmail() throws IOException {
+        GoogleServiceProvider provider = new GoogleServiceProvider(source.password);
+        List<MimeMessage> mimeMessages = UserInboxCrawler.fetchGmails("", provider, max);
+        return Flux.fromIterable(mimeMessages);
+    }
+
+    private Flux<MimeMessage> exportExchange() throws Exception {
         ExchangeService exchangeService = new ExchangeServiceProvider().connectAsUser(source.email, source.password.toCharArray(), source.url);
-        new MimeMessageProducer(exchangeService).asFlux().map(msg -> toPath(msg)).collectList().block();
+        return new MimeMessageProducer(exchangeService).asFlux();
     }
 
     private Path toPath(MimeMessage msg) {

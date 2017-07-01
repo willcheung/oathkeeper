@@ -10,16 +10,20 @@ import microsoft.exchange.webservices.data.core.enumeration.search.SortDirection
 import microsoft.exchange.webservices.data.core.service.item.EmailMessage;
 import microsoft.exchange.webservices.data.core.service.item.Item;
 import microsoft.exchange.webservices.data.core.service.schema.ItemSchema;
+import microsoft.exchange.webservices.data.property.complex.Attachment;
 import microsoft.exchange.webservices.data.property.complex.EmailAddress;
 import microsoft.exchange.webservices.data.search.FindItemsResults;
 import microsoft.exchange.webservices.data.search.ItemView;
+import org.apache.commons.lang3.StringUtils;
 import reactor.core.publisher.Flux;
 
 import javax.mail.Address;
 import javax.mail.Message;
 import javax.mail.Session;
 import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
 import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayDeque;
 import java.util.Properties;
@@ -109,7 +113,24 @@ public class MimeMessageProducer {
         mime.addHeader(MimeMessageUtil.X_PRIVATE_ID, msg.getId() != null ? msg.getId().getUniqueId() : "");
         mime.addHeader(MimeMessageUtil.X_SOURCE, NewsFeederRequest.Provider.exchange.toString());
 
-        mime.setContent(msg.getBody().toString(), mimeType);
+        if (msg.getHasAttachments()) {
+            MimeMultipart mp = new MimeMultipart();
+            MimeBodyPart textPart = new MimeBodyPart();
+            textPart.setContent(msg.getBody().toString(), mimeType);
+            mp.addBodyPart(textPart);
+
+            for (Attachment at : msg.getAttachments()) {
+                if (at.getIsInline() || StringUtils.isBlank(at.getName())) continue; // ignore non-file attachments and inline attachments
+                MimeBodyPart attachmentPart = new MimeBodyPart();
+                attachmentPart.setContent("", at.getContentType());  // no actual content, we just pretend at the moment. TODO download content
+                attachmentPart.addHeader(MimeMessageUtil.X_ATTACHMENT_ID, at.getId());
+                attachmentPart.setFileName(at.getName());
+                mp.addBodyPart(attachmentPart);
+            }
+            mime.setContent(mp);
+        } else {
+            mime.setContent(msg.getBody().toString(), mimeType);
+        }
         mime.saveChanges();
         return mime;
     }

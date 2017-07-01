@@ -124,7 +124,10 @@ public class MimeMessageUtil {
                 Object o = p.getContent();
                 if (o instanceof String) {
                     log.debug("String content");
-                    sha = DigestUtils.sha256Hex(o.toString());
+                    String stringContent = o.toString();
+                    if (!stringContent.isEmpty()) {
+                        sha = DigestUtils.sha256Hex(o.toString());
+                    }
                 } else if (o instanceof InputStream) {
                     log.debug("input stream content");
                     InputStream is = (InputStream) o;

@@ -75,6 +75,10 @@ public class MimeMessageUtil {
     public enum AddressField {FROM, REPLY_TO, TO, CC, BCC, ANY_RECIPIENT}
 
     public static List<Attachment> collectAttachments(MimeMessage msg, PartFilter... filters) throws IOException, MessagingException {
+        if (!msg.isMimeType("multipart/mixed")) {
+            return Collections.emptyList();
+        }
+
         List<Attachment> initial = new ArrayList<>();
         collectAttachments(msg, msg, initial, "", filters);
         return initial;
@@ -93,8 +97,11 @@ public class MimeMessageUtil {
      * @throws MessagingException
      */
     static void collectAttachments(MimeMessage msg, Part p, List<Attachment> collectionOfAttachments, String path, PartFilter... filters) throws IOException, MessagingException {
-        if (p.isMimeType("text/plain")) {
-        } else if (p.isMimeType("multipart/*")) {
+        if (p.isMimeType("text/plain")
+                || p.isMimeType("text/html")
+                || p.isMimeType("multipart/related")) {
+            // ignore - we only dig into multipart/mixed parts
+        } else if (p.isMimeType("multipart/mixed")) {
             Multipart mp = (Multipart) p.getContent();
             int count = mp.getCount();
             for (int i = 0; i < count; i++) {

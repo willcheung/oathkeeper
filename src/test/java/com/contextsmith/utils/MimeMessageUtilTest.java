@@ -23,6 +23,7 @@ public class MimeMessageUtilTest {
     public void collectAttachments() throws Exception {
         MimeMessage msg = readMessage(this.getClass().getResource("/EmailWithDoc.msg"));
         List<Attachment> attachments = MimeMessageUtil.collectAttachments(msg);
+        System.out.println(attachments);
         assertEquals(1, attachments.size());
     }
 
@@ -32,6 +33,15 @@ public class MimeMessageUtilTest {
         List<Attachment> attachments = MimeMessageUtil.collectAttachments(msg);
         System.out.println(attachments);
         assertTrue(attachments.size() > 0);
+    }
+
+
+    @Test
+    public void ignoreForwardedAttachments() throws Exception {
+        MimeMessage msg = readMessage(this.getClass().getResource("/EmailWithQuotedMsgAndPDF.msg"));
+        List<Attachment> attachments = MimeMessageUtil.collectAttachments(msg);
+        System.out.println(attachments);
+        assertTrue(attachments.size() == 1);
     }
 
     @Test

@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Properties;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -57,6 +58,38 @@ public class MimeMessageUtilTest {
 
     MimeMessage readMessage(URL url) throws IOException, MessagingException {
         return new MimeMessage(session, url.openStream());
+    }
+
+    @Test
+    public void testToURN() {
+        String userEmail = "beders@contextsmith.com";
+        String urn = MimeMessageUtil.toURN("gmail", userEmail, "bubu", "lala");
+        MimeMessageUtil.fromURN(urn, (provider, email, internalID, fragment) -> {
+            assertEquals("gmail", provider);
+            assertEquals(userEmail, email);
+            assertEquals("bubu", internalID);
+            assertEquals("lala", fragment);
+            return null;
+        });
+
+        urn = MimeMessageUtil.toURN("gmail", userEmail, "bubu", null);
+        MimeMessageUtil.fromURN(urn, (provider, email, internalID, fragment) -> {
+            assertEquals("gmail", provider);
+            assertEquals(userEmail, email);
+            assertEquals("bubu", internalID);
+            assertNull(fragment);
+            return null;
+        });
+
+        String internalID1 = "@$^&*()LKJ=-_[]}{\\|HGFRGHJK?><MNB";
+        urn = MimeMessageUtil.toURN("gmail", userEmail, internalID1, null);
+        MimeMessageUtil.fromURN(urn, (provider, email, internalID, fragment) -> {
+            assertEquals("gmail", provider);
+            assertEquals(userEmail, email);
+            assertEquals(internalID1, internalID);
+            assertNull(fragment);
+            return null;
+        });
     }
 
 }

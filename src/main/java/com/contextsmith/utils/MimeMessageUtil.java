@@ -29,6 +29,7 @@ import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.ZonedDateTime;
@@ -642,9 +643,46 @@ public class MimeMessageUtil {
         }
     }
 
+    /**
+     * Get the attachment
+     * @param msg
+     * @param path a comma-separated index into the mime message tree. Starts with , has either a part number or the special instruction 'c' to recursively descend into an embedded mime content
+     *
+     * @return
+     */
+    public static Part getAttachmentByPath(MimeMessage msg, String path) throws IOException, MessagingException {
+        String[] steps = path.split(",");
+        Object p = msg;
+        for (int i = 0; i < steps.length; i++) {
+            if (i == 0 || steps[i].equals("c")) {
+                p = msg.getContent();
+            } else {
+                int index = Integer.parseInt(steps[i]); // get the n-th part
+                Multipart mp = (Multipart)p;
+                p = mp.getBodyPart(index);
+            }
+        }
+        return (Part)p;
+    }
+
     public static String toURN(String provider, String email, String internalID, String fragment) {
+        assert internalID.indexOf('#') == -1;
         return "urn:email:" + encode(provider) + ":" + encode(email) + ":" + encode(internalID)
                 + (fragment != null ? "#" + encode(fragment) : "");
+    }
+
+    public interface URNConverter<T> {
+        T convert(String provider, String email, String internalID, String fragment);
+    }
+
+    public static <T> T fromURN(String urn, URNConverter<T> consumer) {
+        String[] parts = urn.split(":");
+        String provider = decode(parts[2]);
+        String email = decode(parts[3]);
+        String[] ids = parts[4].split("#");
+        String internalID = decode(ids[0]);
+        String fragment = ids.length == 2 ? ids[1] : null;
+        return consumer.convert(provider, email, internalID, fragment);
     }
 
     private static String encode(String toEncode) {
@@ -653,6 +691,14 @@ public class MimeMessageUtil {
         } catch (UnsupportedEncodingException e) { // can be safely ignored as UTF-8 is supported encoding
         }
         return toEncode;
+    }
+
+    private static String decode(String toDecode) {
+        try {
+            URLDecoder.decode(toDecode, "UTF-8");
+        } catch (UnsupportedEncodingException e) { // can be safely ignored as UTF-8 is supported encoding
+        }
+        return toDecode;
     }
 
     public interface PartFilter {

@@ -69,8 +69,10 @@ public class EmailMessage extends AbstractMessage {
             throws IOException, MessagingException {
         this.messageId = message.getMessageID();  // For equals().
         this.sentDate = MimeMessageUtil.getSentDate(message);
-        if (this.messageId == null || this.sentDate == null) {  // Must have both.
-            throw new MessagingException();
+        if (this.messageId == null) {
+            throw new MessagingException("Unable to extract message ID for " + message);
+        } else if (this.sentDate == null) {  // Must have both.
+            throw new MessagingException("No sent date available in message " + message);
         }
 
         if (StringUtils.isNotBlank(message.getSubject())) {

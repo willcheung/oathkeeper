@@ -1,23 +1,16 @@
 package com.contextsmith.email.provider;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.Set;
-import java.util.regex.Pattern;
-
-import javax.mail.MessagingException;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
-import javax.ws.rs.core.MediaType;
-
+import com.contextsmith.utils.MimeMessageUtil;
+import com.google.common.collect.Multimap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.contextsmith.utils.MimeMessageUtil;
-import com.google.common.collect.Multimap;
+import javax.mail.MessagingException;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
+import java.util.*;
+import java.util.regex.Pattern;
 
 public class EmailFilterer {
   private static final Logger log = LoggerFactory.getLogger(EmailFilterer.class);
@@ -159,15 +152,15 @@ public class EmailFilterer {
     Multimap<String, String> multimap =
         MimeMessageUtil.collectPartsRecursively(message);
 
-    // Check if this message is HTML and contains the string 'subscribe'.
-    for (String html : multimap.get(MediaType.TEXT_HTML)) {
+    // IGNORED - too general. See #34 Check if this message is HTML and contains the string 'subscribe'.
+    /* for (String html : multimap.get(MediaType.TEXT_HTML)) {
       if (html != null && MimeMessageUtil.isHtml(html) &&
           StringUtils.containsIgnoreCase(html, BODY_SUBSCRIBE_WORD)) {
         log.trace("Message filtered: Message is HTML and contains '{}'",
                   BODY_SUBSCRIBE_WORD);
         return false;
       }
-    }
+    } */
 
     // Check if this message contains a calendar event.
     if (!multimap.get(MimeMessageUtil.TEXT_CALENDAR_TYPE).isEmpty()) {

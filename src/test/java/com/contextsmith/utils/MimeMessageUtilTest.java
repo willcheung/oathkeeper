@@ -11,9 +11,7 @@ import java.net.URL;
 import java.util.List;
 import java.util.Properties;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * Created by beders on 6/28/17.
@@ -56,7 +54,7 @@ public class MimeMessageUtilTest {
 
     }
 
-    MimeMessage readMessage(URL url) throws IOException, MessagingException {
+    public static MimeMessage readMessage(URL url) throws IOException, MessagingException {
         return new MimeMessage(session, url.openStream());
     }
 

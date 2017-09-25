@@ -1,0 +1,1935 @@
+Delivered-To: wcheung@contextsmith.com
+Received: by 10.129.79.147 with SMTP id d141csp3324995ywb;
+        Sun, 23 Jul 2017 17:30:18 -0700 (PDT)
+X-Received: by 10.36.224.203 with SMTP id c194mr5440430ith.161.1500856218793;
+        Sun, 23 Jul 2017 17:30:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1500856218; cv=none;
+        d=google.com; s=arc-20160816;
+        b=dICMDPbvMhPV4G6Y0tk8zcPxr4Gssz5OvxcOjmTCBI4cwpJ/AC+oBnwWkQ5LlhJHwm
+         be9Eq1sVBpYuGIhyj7SPm41vxwE3Ec4ToviSR4CqPgAXHeTFWsqq/k1OHHYG3CtA64Ju
+         2wE5Xk6A1R55YqZ8pqHFNGkAqmzPUYP5XHpNfpc3j7SqZNglCKGqHvKCQ4LNJQ+ZkUrH
+         +J/cM1PyLHBHIATJi6Fem35mUM/U5cSfswFwmleuKrnpjDndwxuSV5q66arFqb+jpfj0
+         xA0+5qKlejHp1pJxBNFCJox44jDg0ZoqtDmLDMppAgMjFsKnOI6kuIpDqdnHuO1NC5lx
+         vt5g==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=to:subject:message-id:date:from:references:in-reply-to:mime-version
+         :dkim-signature:arc-authentication-results;
+        bh=M/ibpkVq2aIf3zCymQ8rGOlx7jIfq52OVusu3LEC7JE=;
+        b=BTWeco9cWtdn0KYKscZiTzsvRVETg6IPxu6di7jHk9iTmIdvl9SHJ8a/nPCFFaw5MM
+         JS9xrI8SpumIDfXK6bYZKVEIlHwnGisQGr9pshbryzuhPZNIklIb7w/JfDIuv9pr3f/I
+         Lzxh3FgQ8hgZ+bevh2ftudkjt/q21RNDxdJf49M6TZYHLivz7ow59CmaiRH/BmsB8aY2
+         lEKWq59Do+kARgZPb/swqJ6KCeYdc3kth12VBRXWW4OA66xatOx/+kxi9qz5dPa/fecU
+         hcM3Iea1YH1dsaPWLiZ8rZTfpe6uSH0wBq+yKg/UimBKXFnBpfGXh1zTVWZrfCKa1MWn
+         DWtQ==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@outreach.io header.s=google header.b=eynqp/j6;
+       spf=pass (google.com: domain of mark.kosoglow@outreach.io designates 2607:f8b0:4001:c0b::233 as permitted sender) smtp.mailfrom=mark.kosoglow@outreach.io
+Return-Path: <mark.kosoglow@outreach.io>
+Received: from mail-it0-x233.google.com (mail-it0-x233.google.com. [2607:f8b0:4001:c0b::233])
+        by mx.google.com with ESMTPS id o187si5765019ito.136.2017.07.23.17.30.18
+        for <wcheung@contextsmith.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 23 Jul 2017 17:30:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mark.kosoglow@outreach.io designates 2607:f8b0:4001:c0b::233 as permitted sender) client-ip=2607:f8b0:4001:c0b::233;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@outreach.io header.s=google header.b=eynqp/j6;
+       spf=pass (google.com: domain of mark.kosoglow@outreach.io designates 2607:f8b0:4001:c0b::233 as permitted sender) smtp.mailfrom=mark.kosoglow@outreach.io
+Received: by mail-it0-x233.google.com with SMTP id v205so10216716itf.1
+        for <wcheung@contextsmith.com>; Sun, 23 Jul 2017 17:30:18 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=outreach.io; s=google;
+        h=mime-version:in-reply-to:references:from:date:message-id:subject:to;
+        bh=M/ibpkVq2aIf3zCymQ8rGOlx7jIfq52OVusu3LEC7JE=;
+        b=eynqp/j6QxA/MyRp6/XlNRwaTh4P34zSvFzFEu0dopRihgviuZjpOGwe+C3Gs06tGv
+         s4u0+a6LFKlceu1vAnEXjd5JDdjy0AVA2/xw0LbhW22fw6LYK7Qd+aT5/z08YnRF5dbT
+         VXmfM/73bciX8nMdvz3FBns+Cm8mxeLpBGMVk=
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:in-reply-to:references:from:date
+         :message-id:subject:to;
+        bh=M/ibpkVq2aIf3zCymQ8rGOlx7jIfq52OVusu3LEC7JE=;
+        b=JMHBHDRHT5knzRs49ULLZuUWorX4bls3lWLk5hTZbhyFjHarLiYKKzdkxh9zRwlnid
+         t4f5T8ZAN94mobqogihAGnEa+nzA706PcqpegqZ9/7k4ANLmeA52QjcgibI88ZBxnTqy
+         CgaVLbhWqvSLEw1PYq/uZJSICWMAVOAbCxq0FX0OJ6rGwTdbpMJmILzPfuZPF3DwPWnd
+         LTlWrmdiTnnDWKkoj0fsyFda5aRz8rPGgqqaj5ozgsJX4UkEwjVkosrTVo5Hz9TfhZoy
+         kM+p+zi2A8caEr8MbpzDgEJBedVIn0tdHXv0CJTOaAm9uX5r+wMwk3cNcsUaH2mdI0Mt
+         kSig==
+X-Gm-Message-State: AIVw112fmPtAWEEmFXeQTw7oMHmLRwuTwc/0Z8v88FTbXKHaUPx86S0M
+	DGuTo6mBMGAFJdAgPArHHgxsvxf/qQKy32A=
+X-Received: by 10.36.29.210 with SMTP id 201mr5661913itj.86.1500856217874;
+ Sun, 23 Jul 2017 17:30:17 -0700 (PDT)
+MIME-Version: 1.0
+Received: by 10.79.211.197 with HTTP; Sun, 23 Jul 2017 17:29:57 -0700 (PDT)
+In-Reply-To: <597515a1833cd_43f96261db98c152ed@45e3f25f-625c-4a64-a4e2-dbee622e901f.mail>
+References: <597515a1833cd_43f96261db98c152ed@45e3f25f-625c-4a64-a4e2-dbee622e901f.mail>
+From: Mark Kosoglow <mark.kosoglow@outreach.io>
+Date: Sun, 23 Jul 2017 20:29:57 -0400
+Message-ID: <CAL3him-SkETFjEXT0mhXAeeJb3Hugcqt6b6AkB992jvZ4gN0sw@mail.gmail.com>
+Subject: Re: Weekly Summary for Sunday, July 16 - Saturday, July 22
+To: Will Cheung <wcheung@contextsmith.com>
+Content-Type: multipart/alternative; boundary="001a1143d336b9dcb7055505515a"
+
+--001a1143d336b9dcb7055505515a
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+WIll,
+
+please decipher this for me.
+
+are you using AI to scan emails for tasks, etc.?
+
+Mark
+
+Mark Kosoglow
+LinkedIn Profile <http://linkedin.com/in/mkosoglow>
+814.207.2521
+
+*P.S. Check out the on-demand webinar: **Sales Engagement Platforms: A New
+Frontier for B2B Sales, featuring guest speaker John Bruno of Forrester
+Research=E2=80=94watch now
+<https://outreach.io/lp/forrester-webinar-june-2017/?utm_source=3DGmail&utm=
+_medium=3DEmail&utm_campaign=3DNA_Q2FY18_All_All_ForresterWebinar_Forrester=
+Web>.*
+
+
+On Sun, Jul 23, 2017 at 5:31 PM, ContextSmith <
+notifications@contextsmith.com> wrote:
+
+>
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D844f3923981013230c005ad7a281f6d88781857e&url=3Dhttp%3=
+A%2F%2Fwww.contextsmith.com%3Futm_source%3Duser_mailer%26utm_medium%3Demail=
+%26utm_campaign%3Dweekly_summary_email> July
+> 23, 2017
+> ------------------------------
+> Weekly Summary
+> Sunday, July 16 - Saturday, July 22
+> ------------------------------
+> You are following 4 opportunities:
+> axiomlaw.com axiomlaw.com
+> .
+> Status Summary
+>
+> 30 Low Risk
+>
+> -   No change
+> 3 Open Alerts
+> -   No change
+> 3 Open Tasks
+>
+> Open Alerts & Next Steps: Go to Alerts & Tasks =C2=BB
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D693a746452a3f850234d7d48f842a2c6280e1de8&url=3Dhttps%=
+3A%2F%2Fapp.contextsmith.com%2Fprojects%2F43b28b7c-e78e-4914-81d0-67d3ea89f=
+468%2Ftasks%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26utm_campaign%=
+3Dweekly_summary_email>
+>
+> RE: Join Unleash: Outreach's Inaugural Sales Event
+> I appreciate the invite but it=E2=80=99s unlikely I=E2=80=99ll be able to=
+ attend on such
+> short notice this time.
+> Assigned to: Ruchir Alert
+>
+> RE: Invitation: Outreach <> Axiom Demo @ Thu May 4, 2017 2pm - 3pm (EDT) =
+(
+> lauren.mischke@axiomlaw.com)
+> We got delayed a week or two because of travel schedules.
+> Assigned to: Ruchir Alert
+>
+> Inactive for 40 days!
+> Days Inactive for axiomlaw.com exceeded Medium Threshold at 40 days.
+> Assigned to: Ruchir Alert
+> See more axiomlaw.com =E2=86=92
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D693a746452a3f850234d7d48f842a2c6280e1de8&url=3Dhttps%=
+3A%2F%2Fapp.contextsmith.com%2Fprojects%2F43b28b7c-e78e-4914-81d0-67d3ea89f=
+468%2Ftasks%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26utm_campaign%=
+3Dweekly_summary_email>
+> bluewolfgroup.com bluewolfgroup.com
+> .
+> Status Summary
+>
+> 0 Low Risk
+>
+> -   No change
+> 6 Open Alerts
+> -   No change
+> 6 Open Tasks
+>
+> Open Alerts & Next Steps: Go to Alerts & Tasks =C2=BB
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D26c6d8c702014b84d5faa0276d2f39e45e58050d&url=3Dhttps%=
+3A%2F%2Fapp.contextsmith.com%2Fprojects%2F060487a7-5aaf-4f5b-835f-fc42b667c=
+bab%2Ftasks%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26utm_campaign%=
+3Dweekly_summary_email>
+>
+> Re: Sequence step failure
+> And it still isn't a good process even with a notification center if thei=
+r
+> only options are to change the master template or go update the record's
+> data.
+> Assigned to: David Alert
+>
+> Re: Sequence step failure
+> This will safeguard an email from failing if the variable isn't filled in
+> but it will also save the rep from moving too quickly and sending the ema=
+il
+> before removing the {{! comment goes here}} section (if the 'comment goes
+> here'=E2=80=A6
+> Assigned to: David Alert
+>
+> Re: Outreach Pilot Questions
+> I'm pretty much on the road all day flying back from CA to PA but will be
+> back at my desk tomorrow morning.
+> Assigned to: Ruchir Alert
+>
+> Re: Outbound contact create
+> There's no obvious notification that the Contact failed to create in
+> Salesforce when those conditions are not met.
+> Assigned to: David Alert
+>
+> Updates on user 1:1's and adoption
+> I'm afraid that my vacation took away from the evaluation and reps were
+> needing to figure out Outreach on their own without a wingman.
+> Assigned to: David Alert
+>
+> Re: Next steps
+> I was on vacation last week and didn't get a chance to update Ruchir and
+> Brian in their transition on accounts.
+> Assigned to: Mark Alert
+> See more bluewolfgroup.com =E2=86=92
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D26c6d8c702014b84d5faa0276d2f39e45e58050d&url=3Dhttps%=
+3A%2F%2Fapp.contextsmith.com%2Fprojects%2F060487a7-5aaf-4f5b-835f-fc42b667c=
+bab%2Ftasks%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26utm_campaign%=
+3Dweekly_summary_email>
+> Gro-Intelligence Gro-Intelligence
+> .
+> Status Summary
+>
+> 60 Medium Risk
+>
+> -   No change
+> 1 Open Alert
+> -   No change
+> 1 Open Task
+>
+> Open Alerts & Next Steps: Go to Alerts & Tasks =C2=BB
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D7d17fd4e929ef23be1215ffb5fd8d10770bf41a8&url=3Dhttps%=
+3A%2F%2Fapp.contextsmith.com%2Fprojects%2F8aee0bd8-dfb9-4120-9e89-8ed436bc6=
+3cc%2Ftasks%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26utm_campaign%=
+3Dweekly_summary_email>
+>
+> Inactive for 61 days!
+> Days Inactive for Gro-Intelligence exceeded High Threshold at 61 days.
+> Assigned to: Ruchir Alert
+> See more Gro-Intelligence =E2=86=92
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D7d17fd4e929ef23be1215ffb5fd8d10770bf41a8&url=3Dhttps%=
+3A%2F%2Fapp.contextsmith.com%2Fprojects%2F8aee0bd8-dfb9-4120-9e89-8ed436bc6=
+3cc%2Ftasks%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26utm_campaign%=
+3Dweekly_summary_email>
+> rand.com rand.com
+> .
+> Status Summary
+>
+> 0 Low Risk
+>
+> -   No change
+> 0 Open Alerts
+> -   No change
+> 0 Open Tasks
+>
+> No Open Alerts or Next Steps.
+> See more rand.com =E2=86=92
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D0476b50be40ed74c810e062448da921ef568f127&url=3Dhttps%=
+3A%2F%2Fapp.contextsmith.com%2Fprojects%2Ff52fce2b-2602-4dda-b45b-bf294cac8=
+56c%2Ftasks%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26utm_campaign%=
+3Dweekly_summary_email>
+>
+> Want to receive your team's task summary in this e-mail? Invite team
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D2f9078d53ecb3fbabcd784ed1a211253021e12b3&url=3Dhttps%=
+3A%2F%2Fapp.contextsmith.com%2Fsettings%3Futm_source%3Duser_mailer%26utm_me=
+dium%3Demail%26utm_campaign%3Dweekly_summary_email>
+>
+> How can we make ContextSmith more useful for you? We'd love to hear your
+> feedback! Please send us a note at support@contextsmith.com
+> <support@contextsmith.com?subject=3DFeedback!> or follow us on Twitter
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3De64d5a35de607c7adcf89f1c95c584d8c62e6d0a&url=3Dhttps%=
+3A%2F%2Ftwitter.com%2FContextSmith%3Futm_source%3Duser_mailer%26utm_medium%=
+3Demail%26utm_campaign%3Dweekly_summary_email>
+> for updates.
+>
+> Click here to Subscribe or Unsubscribe
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D04362577861a4e750248b236ede24a4fd8be5258&url=3Dhttps%=
+3A%2F%2Fapp.contextsmith.com%2Fprojects%3Futm_source%3Duser_mailer%26utm_me=
+dium%3Demail%26utm_campaign%3Dweekly_summary_email>
+> to weekly and daily summaries.
+> *ContextSmith, Inc.*
+> Made in Mountain View, CA
+> ContextSmith.com
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D844f3923981013230c005ad7a281f6d88781857e&url=3Dhttp%3=
+A%2F%2Fwww.contextsmith.com%3Futm_source%3Duser_mailer%26utm_medium%3Demail=
+%26utm_campaign%3Dweekly_summary_email>
+> | Our blog
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3Dd401adcaf4a76092b8f90ece291f2a9ac9ab2286&url=3Dhttp%3=
+A%2F%2Fwww.contextsmith.com%2Fblog%3Futm_source%3Duser_mailer%26utm_medium%=
+3Demail%26utm_campaign%3Dweekly_summary_email>
+>
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D7bee2908575eaf6dabecbd2183a2603cd032a521&url=3Dhttps%=
+3A%2F%2Fwww.facebook.com%2FContextSmith%2F%3Futm_source%3Duser_mailer%26utm=
+_medium%3Demail%26utm_campaign%3Dweekly_summary_email>
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3De64d5a35de607c7adcf89f1c95c584d8c62e6d0a&url=3Dhttps%=
+3A%2F%2Ftwitter.com%2FContextSmith%3Futm_source%3Duser_mailer%26utm_medium%=
+3Demail%26utm_campaign%3Dweekly_summary_email>
+> <info@contextsmith.com>
+> You are receiving this e-mail because you signed up at or your teammate
+> invited you to ContextSmith.com
+> <https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvI=
+lCb/click?signature=3D844f3923981013230c005ad7a281f6d88781857e&url=3Dhttp%3=
+A%2F%2Fwww.contextsmith.com%3Futm_source%3Duser_mailer%26utm_medium%3Demail=
+%26utm_campaign%3Dweekly_summary_email>.
+>
+>
+
+--001a1143d336b9dcb7055505515a
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">WIll,<span title=3D"-outreach org-8f09ed59-04ba-11e6-940a-=
+02c9a687c33b mailing-2100937 domain-outreach.outrch.com signature-C9WON6gVd=
+q1TZjPWvyXKYK4Yad4qBK2o8oIHyFxOs_c=3D open_tracking track_as_prospect"></sp=
+an><div><br></div><div>please decipher this for me.</div><div><br></div><di=
+v>are you using AI to scan emails for tasks, etc.?<br><br>Mark</div></div><=
+div class=3D"gmail_extra"><br clear=3D"all"><div><div class=3D"gmail_signat=
+ure" data-smartmail=3D"gmail_signature"><div dir=3D"ltr"><div><div dir=3D"l=
+tr"><div><div dir=3D"ltr"><div><div dir=3D"ltr"><div><div dir=3D"ltr"><div =
+dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div dir=3D"=
+ltr"><div dir=3D"ltr"><div dir=3D"ltr"><div><span style=3D"font-size:12.8px=
+">Mark Kosoglow</span><br style=3D"font-size:12.8px"><span style=3D"font-si=
+ze:12.8px"><a href=3D"http://linkedin.com/in/mkosoglow" target=3D"_blank">L=
+inkedIn Profile</a></span><br style=3D"font-size:12.8px"><span style=3D"fon=
+t-size:12.8px"><span title=3D"Call with Google Voice"><span title=3D"Call w=
+ith Google Voice">814.207.2521</span></span></span><br></div><div><span sty=
+le=3D"font-size:12.8px"><span title=3D"Call with Google Voice"><span title=
+=3D"Call with Google Voice"><br></span></span></span></div><div><i style=3D=
+"font-size:12.8px">P.S. Check out the on-demand webinar:=C2=A0</i><i style=
+=3D"font-size:12.8px">Sales Engagement Platforms: A New Frontier for B2B Sa=
+les,=C2=A0featuring guest speaker John Bruno of Forrester Research=E2=80=94=
+<a href=3D"https://outreach.io/lp/forrester-webinar-june-2017/?utm_source=
+=3DGmail&amp;utm_medium=3DEmail&amp;utm_campaign=3DNA_Q2FY18_All_All_Forres=
+terWebinar_ForresterWeb" style=3D"color:rgb(17,85,204)" target=3D"_blank">w=
+atch now</a>.</i><span style=3D"font-size:12.8px"><span title=3D"Call with =
+Google Voice"><span title=3D"Call with Google Voice"><br></span></span></sp=
+an></div><div style=3D"font-size:12.8px;color:rgb(136,136,136)"><br></div><=
+/div></div></div></div></div></div></div></div></div></div></div></div></di=
+v></div></div></div></div></div>
+<br><div class=3D"gmail_quote">On Sun, Jul 23, 2017 at 5:31 PM, ContextSmit=
+h <span dir=3D"ltr">&lt;<a href=3D"mailto:notifications@contextsmith.com" t=
+arget=3D"_blank">notifications@contextsmith.com</a>&gt;</span> wrote:<br><b=
+lockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1px =
+#ccc solid;padding-left:1ex"><u></u>
+
+  =20
+     =20
+     =20
+     =20
+     =20
+  =20
+   <div style=3D"width:100%!important;min-width:100%;color:#222222;text-ali=
+gn:left;line-height:19px;font-size:14px;margin:0;padding:0">
+     =20
+      <table class=3D"m_395852192419412221body" style=3D"border-spacing:0;b=
+order-collapse:collapse;vertical-align:top;text-align:left;height:100%;widt=
+h:100%;color:#222222;line-height:19px;font-size:14px;margin:0;padding:0">
+         <tbody><tr style=3D"vertical-align:top;text-align:left;padding:0" =
+align=3D"left">
+            <td class=3D"m_395852192419412221center" align=3D"center" valig=
+n=3D"top" style=3D"word-break:break-word;border-collapse:collapse!important=
+;vertical-align:top;text-align:center;color:#222222;line-height:19px;font-s=
+ize:14px;margin:0;padding:0">
+               <center style=3D"width:100%">
+
+           =20
+                  <table class=3D"m_395852192419412221row m_395852192419412=
+221header" style=3D"border-spacing:0;border-collapse:collapse;vertical-alig=
+n:top;text-align:left;width:100%;background:#f3f3f4;padding:0px" bgcolor=3D=
+"#f3f3f4">
+                     <tbody><tr style=3D"vertical-align:top;text-align:left=
+;padding:0" align=3D"left">
+                        <td class=3D"m_395852192419412221center" align=3D"c=
+enter" style=3D"word-break:break-word;border-collapse:collapse!important;ve=
+rtical-align:top;text-align:center;color:#222222;line-height:19px;font-size=
+:14px;margin:0;padding:0" valign=3D"top">
+                           <center style=3D"width:100%">
+                              <table class=3D"m_395852192419412221container=
+" style=3D"border-spacing:0;border-collapse:collapse;vertical-align:top;tex=
+t-align:inherit;width:580px;margin:0 auto;padding:0">
+                                 <tbody><tr style=3D"vertical-align:top;tex=
+t-align:left;padding:0" align=3D"left">
+                                    <td class=3D"m_395852192419412221wrappe=
+r m_395852192419412221last" style=3D"word-break:break-word;border-collapse:=
+collapse!important;vertical-align:top;text-align:left;color:#222222;line-he=
+ight:19px;font-size:14px;margin:0;padding:10px 0px 0px" align=3D"left" vali=
+gn=3D"top">
+                                       <table class=3D"m_395852192419412221=
+twelve m_395852192419412221columns" style=3D"border-spacing:0;border-collap=
+se:collapse;vertical-align:top;text-align:left;width:580px;margin:0 auto;pa=
+dding:0">
+                                          <tbody><tr style=3D"vertical-alig=
+n:top;text-align:left;padding:0" align=3D"left">
+                                             <td class=3D"m_395852192419412=
+221six m_395852192419412221sub-columns" style=3D"word-break:break-word;bord=
+er-collapse:collapse!important;vertical-align:top;text-align:left;min-width=
+:0px;width:50%;color:#222222;line-height:19px;font-size:14px;margin:0;paddi=
+ng:0px 10px 10px 0px" align=3D"left" valign=3D"top">
+                                                <a href=3D"https://app.cont=
+extsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvIlCb/click?signature=
+=3D844f3923981013230c005ad7a281f6d88781857e&amp;url=3Dhttp%3A%2F%2Fwww.cont=
+extsmith.com%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26utm_campaign=
+%3Dweekly_summary_email" target=3D"_blank"><img src=3D"https://app.contexts=
+mith.com//assets/logo.png" style=3D"width:200px"></a>
+                                             </td>
+                                             <td class=3D"m_395852192419412=
+221six m_395852192419412221sub-columns m_395852192419412221last" style=3D"t=
+ext-align:right;vertical-align:middle;word-break:break-word;border-collapse=
+:collapse!important;min-width:0px;width:50%;color:#222222;line-height:19px;=
+font-size:14px;margin:0;padding:0px 0px 10px" align=3D"right" valign=3D"mid=
+dle">
+                                                <span class=3D"m_3958521924=
+19412221template-label" style=3D"color:#333;font-size:11px">July 23, 2017</=
+span>
+                                             </td>
+                                             <td class=3D"m_395852192419412=
+221expander" style=3D"word-break:break-word;border-collapse:collapse!import=
+ant;vertical-align:top;text-align:left;width:0px;color:#222222;line-height:=
+19px;font-size:14px;margin:0;padding:0" align=3D"left" valign=3D"top"></td>
+                                          </tr>
+                                       </tbody></table>
+                                    </td>
+                                 </tr>
+                              </tbody></table>
+                           </center>
+                        </td>
+                     </tr>
+                  </tbody></table>
+
+                 =20
+                  <table class=3D"m_395852192419412221container" style=3D"b=
+order-spacing:0;border-collapse:collapse;vertical-align:top;text-align:inhe=
+rit;width:580px;margin:0 auto;padding:0">
+                     <tbody><tr style=3D"vertical-align:top;text-align:left=
+;padding:0" align=3D"left">
+                        <td style=3D"word-break:break-word;border-collapse:=
+collapse!important;vertical-align:top;text-align:left;color:#222222;line-he=
+ight:19px;font-size:14px;margin:0;padding:0" align=3D"left" valign=3D"top">
+
+                          =20
+
+
+<table class=3D"m_395852192419412221row" border=3D"0" cellspacing=3D"0" cel=
+lpadding=3D"0" style=3D"margin:0;padding:0;border:0;text-align:left;border-=
+collapse:collapse;border-spacing:0">
+  <tbody><tr>
+  <td style=3D"text-align:left;font-size:15px;line-height:19px;border-colla=
+pse:collapse;padding:0;border-spacing:0;color:#000000;width:49%;vertical-al=
+ign:middle"><hr style=3D"margin:0;padding:0;border:none;border-bottom:3px s=
+olid #e5e5e5"></td>
+    <th class=3D"m_395852192419412221center" style=3D"width:2%;padding:0 10=
+px;white-space:nowrap;vertical-align:middle">
+      <center>
+        <h1 style=3D"font-size:32px;font-weight:200;color:#222222;line-heig=
+ht:normal;text-align:center;margin:0 auto">
+          Weekly Summary<br>
+          <span style=3D"font-weight:normal;font-size:16px;font-weight:200;=
+color:#222222">Sunday, July 16 - Saturday, July 22</span>
+        </h1>
+      <center>
+    </center>
+</center>
+</th>
+    <td style=3D"text-align:left;font-size:15px;line-height:19px;border-col=
+lapse:collapse;padding:0;border-spacing:0;color:#000000;width:49%;vertical-=
+align:middle"><hr style=3D"margin:0;padding:0;border:none;border-bottom:3px=
+ solid #e5e5e5"></td>
+  </tr>
+</tbody></table>
+<div style=3D"width:100%;padding-bottom:20px"></div>
+
+
+
+<div style=3D"margin-bottom:30px;min-width:560px;max-width:100%">
+  <h2 style=3D"margin:6px 0 9px;font-size:22px;font-weight:200;margin-botto=
+m:20px;color:#333333">You are following 4 opportunities:</h2>
+
+ =20
+
+   =20
+    <div style=3D"margin:0"></div>
+
+   =20
+   =20
+
+
+
+   =20
+
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:=
+90%;background-color:#fff;vertical-align:top">
+      <tbody>
+        <tr>
+          <td><div style=3D"border-bottom:1px solid #c1c1c1;padding-bottom:=
+5px">
+            <div style=3D"display:inline-block;padding-top:19px;height:100%=
+">
+              <span style=3D"color:#666;text-overflow:ellipsis;font-size:24=
+px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Arial,sans-serif;text-dec=
+oration:none"><a href=3D"http://axiomlaw.com" target=3D"_blank">axiomlaw.co=
+m</a></span>
+             =20
+              <span style=3D"margin:0 0.4em;font-size:24px;border-left:1px =
+solid #ccc"></span>
+              <span style=3D"font-size:14px;font-weight:bold;font-family:&#=
+39;Helvetica Neue&#39;,Helvetica,Arial,sans-serif;text-overflow:ellipsis"><=
+a href=3D"http://axiomlaw.com" target=3D"_blank">axiomlaw.com</a></span>
+            </div>
+           =20
+            <div style=3D"display:none;float:right;color:#fff">.</div>=20
+            <div style=3D"display:none;float:right;margin-right:2px;width:3=
+6px;height:36px;border-radius:50%;border:1px solid #737373;opacity:0.8;back=
+ground-color:#fff" title=3D"Status: None"></div>=20
+          </div>
+        </td></tr>
+        <tr>
+          <td>
+           =20
+            <table style=3D"border:solid 1px #c1c1c1;margin-top:10px;paddin=
+g:0.3em;border-radius:15px;display:inline-block">=20
+              <tbody>
+                <tr>
+                  <td style=3D"text-align:center;padding-bottom:6px;color:#=
+999;text-overflow:ellipsis;font-size:19px;font-family:&#39;Helvetica Neue&#=
+39;,Helvetica,Arial,sans-serif;border-bottom:solid;border-bottom-width:1px"=
+>Status Summary</td>
+                </tr>
+                <tr> =20
+                  <td>=20
+                    <div style=3D"padding:0 10px;margin:0 0.1em">
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#a1c436;font-size:36px;f=
+ont-weight:bold;vertical-align:middle;line-height:initial;display:inline-bl=
+ock">30</span>
+                              <span style=3D"color:#a1c436;font-size:16px;p=
+adding:4px;width:60px;height:40px;vertical-align:middle;display:inline-bloc=
+k">Low Risk</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"color:#999;font-size:14px;padding-=
+right:0px;min-width:140px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Ar=
+ial,sans-serif;line-height:initial">
+                              <div>
+                                -
+                              =C2=A0=C2=A0No change
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#666;font-size:36px;font=
+-weight:bold;vertical-align:middle;line-height:initial;display:inline-block=
+">3</span>
+                              <span style=3D"color:#666;font-size:16px;padd=
+ing:4px;max-width:70px;height:40px;vertical-align:middle;display:inline-blo=
+ck">Open Alerts</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"color:#999;font-size:14px;padding-=
+right:0px;min-width:150px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Ar=
+ial,sans-serif;line-height:initial">
+                                -
+                              =C2=A0=C2=A0No change=20
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#666;font-size:36px;font=
+-weight:bold;vertical-align:middle;line-height:initial;display:inline-block=
+">3</span>
+                              <span style=3D"color:#666;font-size:16px;padd=
+ing:4px;max-width:70px;height:40px;vertical-align:middle;display:inline-blo=
+ck">Open Tasks</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"line-height:initial">=C2=A0</td>
+                          </tr>=20
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+   =20
+    <div style=3D"margin:0">
+      <table class=3D"m_395852192419412221row" style=3D"padding:0;margin:0;=
+width:100%;border-collapse:collapse">
+        <tbody style=3D"width:100%;display:table">
+          <tr>
+          </tr>
+         =20
+        </tbody>
+      </table>
+    </div>=20
+
+   =20
+    <div style=3D"margin:0;font-size:14px">
+     =20
+      <table class=3D"m_395852192419412221row" style=3D"font-size:14px;padd=
+ing:0;margin:0;width:100%;border-collapse:collapse">
+        <tbody style=3D"width:100%;display:table;margin-top:2em">
+          <tr>
+            <td style=3D"font-weight:bold;color:green;vertical-align:middle=
+">
+              <span>Open Alerts &amp; Next Steps:</span>
+            </td>
+            <td class=3D"m_395852192419412221expander"></td>
+            <td style=3D"font-weight:bold;padding:6px;text-align:right">
+              <a href=3D"https://app.contextsmith.com/ahoy/messages/vNlQQKF=
+u9pRocp0N04Tbmgb6U8tvIlCb/click?signature=3D693a746452a3f850234d7d48f842a2c=
+6280e1de8&amp;url=3Dhttps%3A%2F%2Fapp.contextsmith.com%2Fprojects%2F43b28b7=
+c-e78e-4914-81d0-67d3ea89f468%2Ftasks%3Futm_source%3Duser_mailer%26utm_medi=
+um%3Demail%26utm_campaign%3Dweekly_summary_email" style=3D"display:inline-b=
+lock;font-family:sans-serif;line-height:25px;text-align:center;text-decorat=
+ion:none" target=3D"_blank">Go to Alerts &amp; Tasks =C2=BB</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+     =20
+      <table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" style=3D"padd=
+ing:0;border:0;width:100%;border-spacing:0;border-collapse:collapse;text-al=
+ign:left;margin:4px 0!important">
+        <tbody>
+            <tr>
+              <td style=3D"text-align:left;font-size:15px;line-height:15px;=
+border-collapse:collapse;border-spacing:0;vertical-align:top;width:20px;min=
+-width:20px;max-width:20px;padding:3px">
+                <div style=3D"width:12px;height:12px;border:1px solid #c1c1=
+c1;margin:3px;font-size:18px"></div>
+              </td>
+              <td style=3D"padding:5px 5px 8px 5px">
+                <table>
+                  <tbody><tr>
+                    <td style=3D"text-align:left;font-size:15px;line-height=
+:14px;border-collapse:collapse;border-spacing:0;vertical-align:top">
+                      <span style=3D"font-weight:bold;font-size:14px;line-h=
+eight:15px">
+                        RE: Join Unleash: Outreach&#39;s Inaugural Sales Ev=
+ent
+                      </span>
+                      <br>
+                       =20
+                        <span style=3D"font-size:11px;color:grey;line-heigh=
+t:1">
+                          I appreciate the invite but it=E2=80=99s unlikely=
+ I=E2=80=99ll be able to attend on such short notice this time.
+                        </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style=3D"border-collapse:collapse;padding:5px 0px">
+                      <span style=3D"color:#999;font-weight:normal;text-ali=
+gn:right;font-size:12px;border-spacing:0;vertical-align:top;min-width:115px=
+;max-width:120px">
+                        Assigned to: Ruchir
+                      </span>
+                      <span style=3D"text-align:left;border-spacing:0;verti=
+cal-align:top;width:85px;min-width:80px;max-width:85px">
+                        <span style=3D"font-size:10px;font-weight:600;paddi=
+ng:1px 5px;background-color:white;border-radius:0.25em;min-width:80px;max-w=
+idth:80px;color:#ed5565;border:2px #ed5565 solid">
+                          Alert</span>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody></table>
+              </td>
+            </tr>
+                      <tr>
+              <td style=3D"text-align:left;font-size:15px;line-height:15px;=
+border-collapse:collapse;border-spacing:0;vertical-align:top;width:20px;min=
+-width:20px;max-width:20px;padding:3px">
+                <div style=3D"width:12px;height:12px;border:1px solid #c1c1=
+c1;margin:3px;font-size:18px"></div>
+              </td>
+              <td style=3D"padding:5px 5px 8px 5px">
+                <table>
+                  <tbody><tr>
+                    <td style=3D"text-align:left;font-size:15px;line-height=
+:14px;border-collapse:collapse;border-spacing:0;vertical-align:top">
+                      <span style=3D"font-weight:bold;font-size:14px;line-h=
+eight:15px">
+                        RE: Invitation: Outreach &lt;&gt; Axiom Demo @ Thu =
+May 4, 2017 2pm - 3pm (EDT) (<a href=3D"mailto:lauren.mischke@axiomlaw.com"=
+ target=3D"_blank">lauren.mischke@axiomlaw.com</a>)
+                      </span>
+                      <br>
+                       =20
+                        <span style=3D"font-size:11px;color:grey;line-heigh=
+t:1">
+                          We got delayed a week or two because of travel sc=
+hedules.
+                        </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style=3D"border-collapse:collapse;padding:5px 0px">
+                      <span style=3D"color:#999;font-weight:normal;text-ali=
+gn:right;font-size:12px;border-spacing:0;vertical-align:top;min-width:115px=
+;max-width:120px">
+                        Assigned to: Ruchir
+                      </span>
+                      <span style=3D"text-align:left;border-spacing:0;verti=
+cal-align:top;width:85px;min-width:80px;max-width:85px">
+                        <span style=3D"font-size:10px;font-weight:600;paddi=
+ng:1px 5px;background-color:white;border-radius:0.25em;min-width:80px;max-w=
+idth:80px;color:#ed5565;border:2px #ed5565 solid">
+                          Alert</span>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody></table>
+              </td>
+            </tr>
+                      <tr>
+              <td style=3D"text-align:left;font-size:15px;line-height:15px;=
+border-collapse:collapse;border-spacing:0;vertical-align:top;width:20px;min=
+-width:20px;max-width:20px;padding:3px">
+                <div style=3D"width:12px;height:12px;border:1px solid #c1c1=
+c1;margin:3px;font-size:18px"></div>
+              </td>
+              <td style=3D"padding:5px 5px 8px 5px">
+                <table>
+                  <tbody><tr>
+                    <td style=3D"text-align:left;font-size:15px;line-height=
+:14px;border-collapse:collapse;border-spacing:0;vertical-align:top">
+                      <span style=3D"font-weight:bold;font-size:14px;line-h=
+eight:15px">
+                        Inactive for 40 days!
+                      </span>
+                      <br>
+                       =20
+                        <span style=3D"font-size:11px;color:grey;line-heigh=
+t:1">
+                          Days Inactive for <a href=3D"http://axiomlaw.com"=
+ target=3D"_blank">axiomlaw.com</a> exceeded Medium Threshold at 40 days.
+                        </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style=3D"border-collapse:collapse;padding:5px 0px">
+                      <span style=3D"color:#999;font-weight:normal;text-ali=
+gn:right;font-size:12px;border-spacing:0;vertical-align:top;min-width:115px=
+;max-width:120px">
+                        Assigned to: Ruchir
+                      </span>
+                      <span style=3D"text-align:left;border-spacing:0;verti=
+cal-align:top;width:85px;min-width:80px;max-width:85px">
+                        <span style=3D"font-size:10px;font-weight:600;paddi=
+ng:1px 5px;background-color:white;border-radius:0.25em;min-width:80px;max-w=
+idth:80px;color:#ed5565;border:2px #ed5565 solid">
+                          Alert</span>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody></table>
+              </td>
+            </tr>
+          =20
+        </tbody>
+      </table>
+     =20
+    </div>
+
+   =20
+    <div style=3D"height:40px;width:100%;margin:2em auto">
+      <span style=3D"margin-left:12em">
+        <a href=3D"https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRoc=
+p0N04Tbmgb6U8tvIlCb/click?signature=3D693a746452a3f850234d7d48f842a2c6280e1=
+de8&amp;url=3Dhttps%3A%2F%2Fapp.contextsmith.com%2Fprojects%2F43b28b7c-e78e=
+-4914-81d0-67d3ea89f468%2Ftasks%3Futm_source%3Duser_mailer%26utm_medium%3De=
+mail%26utm_campaign%3Dweekly_summary_email" style=3D"background-color:#ffff=
+ff;border:1px solid #2ba6cb;border-radius:9px;color:#2ba6cb;display:inline-=
+block;font-family:sans-serif;font-size:13px;line-height:30px;text-align:cen=
+ter;padding:0px 7px" title=3D"Open &quot;axiomlaw.com&quot; opportunity in =
+ContextSmith app" target=3D"_blank">See more axiomlaw.com =E2=86=92</a>=20
+      </span>
+    </div>
+
+ =20
+   =20
+    <div style=3D"margin:0;padding:12px 0px;border-top:2px dotted #ddd"></d=
+iv>
+
+   =20
+   =20
+
+
+
+   =20
+
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:=
+90%;background-color:#fff;vertical-align:top">
+      <tbody>
+        <tr>
+          <td><div style=3D"border-bottom:1px solid #c1c1c1;padding-bottom:=
+5px">
+            <div style=3D"display:inline-block;padding-top:19px;height:100%=
+">
+              <span style=3D"color:#666;text-overflow:ellipsis;font-size:24=
+px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Arial,sans-serif;text-dec=
+oration:none"><a href=3D"http://bluewolfgroup.com" target=3D"_blank">bluewo=
+lfgroup.com</a></span>
+             =20
+              <span style=3D"margin:0 0.4em;font-size:24px;border-left:1px =
+solid #ccc"></span>
+              <span style=3D"font-size:14px;font-weight:bold;font-family:&#=
+39;Helvetica Neue&#39;,Helvetica,Arial,sans-serif;text-overflow:ellipsis"><=
+a href=3D"http://bluewolfgroup.com" target=3D"_blank">bluewolfgroup.com</a>=
+</span>
+            </div>
+           =20
+            <div style=3D"display:none;float:right;color:#fff">.</div>=20
+            <div style=3D"display:none;float:right;margin-right:2px;width:3=
+6px;height:36px;border-radius:50%;border:1px solid #737373;opacity:0.8;back=
+ground-color:#fff" title=3D"Status: None"></div>=20
+          </div>
+        </td></tr>
+        <tr>
+          <td>
+           =20
+            <table style=3D"border:solid 1px #c1c1c1;margin-top:10px;paddin=
+g:0.3em;border-radius:15px;display:inline-block">=20
+              <tbody>
+                <tr>
+                  <td style=3D"text-align:center;padding-bottom:6px;color:#=
+999;text-overflow:ellipsis;font-size:19px;font-family:&#39;Helvetica Neue&#=
+39;,Helvetica,Arial,sans-serif;border-bottom:solid;border-bottom-width:1px"=
+>Status Summary</td>
+                </tr>
+                <tr> =20
+                  <td>=20
+                    <div style=3D"padding:0 10px;margin:0 0.1em">
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#a1c436;font-size:36px;f=
+ont-weight:bold;vertical-align:middle;line-height:initial;display:inline-bl=
+ock">0</span>
+                              <span style=3D"color:#a1c436;font-size:16px;p=
+adding:4px;width:60px;height:40px;vertical-align:middle;display:inline-bloc=
+k">Low Risk</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"color:#999;font-size:14px;padding-=
+right:0px;min-width:140px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Ar=
+ial,sans-serif;line-height:initial">
+                              <div>
+                                -
+                              =C2=A0=C2=A0No change
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#666;font-size:36px;font=
+-weight:bold;vertical-align:middle;line-height:initial;display:inline-block=
+">6</span>
+                              <span style=3D"color:#666;font-size:16px;padd=
+ing:4px;max-width:70px;height:40px;vertical-align:middle;display:inline-blo=
+ck">Open Alerts</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"color:#999;font-size:14px;padding-=
+right:0px;min-width:150px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Ar=
+ial,sans-serif;line-height:initial">
+                                -
+                              =C2=A0=C2=A0No change=20
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#666;font-size:36px;font=
+-weight:bold;vertical-align:middle;line-height:initial;display:inline-block=
+">6</span>
+                              <span style=3D"color:#666;font-size:16px;padd=
+ing:4px;max-width:70px;height:40px;vertical-align:middle;display:inline-blo=
+ck">Open Tasks</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"line-height:initial">=C2=A0</td>
+                          </tr>=20
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+   =20
+    <div style=3D"margin:0">
+      <table class=3D"m_395852192419412221row" style=3D"padding:0;margin:0;=
+width:100%;border-collapse:collapse">
+        <tbody style=3D"width:100%;display:table">
+ =20
+        </tbody>
+      </table>
+    </div>=20
+
+   =20
+    <div style=3D"margin:0;font-size:14px">
+     =20
+      <table class=3D"m_395852192419412221row" style=3D"font-size:14px;padd=
+ing:0;margin:0;width:100%;border-collapse:collapse">
+        <tbody style=3D"width:100%;display:table;margin-top:2em">
+          <tr>
+            <td style=3D"font-weight:bold;color:green;vertical-align:middle=
+">
+              <span>Open Alerts &amp; Next Steps:</span>
+            </td>
+            <td class=3D"m_395852192419412221expander"></td>
+            <td style=3D"font-weight:bold;padding:6px;text-align:right">
+              <a href=3D"https://app.contextsmith.com/ahoy/messages/vNlQQKF=
+u9pRocp0N04Tbmgb6U8tvIlCb/click?signature=3D26c6d8c702014b84d5faa0276d2f39e=
+45e58050d&amp;url=3Dhttps%3A%2F%2Fapp.contextsmith.com%2Fprojects%2F060487a=
+7-5aaf-4f5b-835f-fc42b667cbab%2Ftasks%3Futm_source%3Duser_mailer%26utm_medi=
+um%3Demail%26utm_campaign%3Dweekly_summary_email" style=3D"display:inline-b=
+lock;font-family:sans-serif;line-height:25px;text-align:center;text-decorat=
+ion:none" target=3D"_blank">Go to Alerts &amp; Tasks =C2=BB</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+     =20
+      <table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" style=3D"padd=
+ing:0;border:0;width:100%;border-spacing:0;border-collapse:collapse;text-al=
+ign:left;margin:4px 0!important">
+        <tbody>
+            <tr>
+              <td style=3D"text-align:left;font-size:15px;line-height:15px;=
+border-collapse:collapse;border-spacing:0;vertical-align:top;width:20px;min=
+-width:20px;max-width:20px;padding:3px">
+                <div style=3D"width:12px;height:12px;border:1px solid #c1c1=
+c1;margin:3px;font-size:18px"></div>
+              </td>
+              <td style=3D"padding:5px 5px 8px 5px">
+                <table>
+                  <tbody><tr>
+                    <td style=3D"text-align:left;font-size:15px;line-height=
+:14px;border-collapse:collapse;border-spacing:0;vertical-align:top">
+                      <span style=3D"font-weight:bold;font-size:14px;line-h=
+eight:15px">
+                        Re: Sequence step failure
+                      </span>
+                      <br>
+                       =20
+                        <span style=3D"font-size:11px;color:grey;line-heigh=
+t:1">
+                          And it still isn&#39;t a good process even with a=
+ notification center if their
+only options are to change the master template or go update the record&#39;=
+s
+data.
+                        </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style=3D"border-collapse:collapse;padding:5px 0px">
+                      <span style=3D"color:#999;font-weight:normal;text-ali=
+gn:right;font-size:12px;border-spacing:0;vertical-align:top;min-width:115px=
+;max-width:120px">
+                        Assigned to: David
+                      </span>
+                      <span style=3D"text-align:left;border-spacing:0;verti=
+cal-align:top;width:85px;min-width:80px;max-width:85px">
+                        <span style=3D"font-size:10px;font-weight:600;paddi=
+ng:1px 5px;background-color:white;border-radius:0.25em;min-width:80px;max-w=
+idth:80px;color:#ed5565;border:2px #ed5565 solid">
+                          Alert</span>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody></table>
+              </td>
+            </tr>
+                      <tr>
+              <td style=3D"text-align:left;font-size:15px;line-height:15px;=
+border-collapse:collapse;border-spacing:0;vertical-align:top;width:20px;min=
+-width:20px;max-width:20px;padding:3px">
+                <div style=3D"width:12px;height:12px;border:1px solid #c1c1=
+c1;margin:3px;font-size:18px"></div>
+              </td>
+              <td style=3D"padding:5px 5px 8px 5px">
+                <table>
+                  <tbody><tr>
+                    <td style=3D"text-align:left;font-size:15px;line-height=
+:14px;border-collapse:collapse;border-spacing:0;vertical-align:top">
+                      <span style=3D"font-weight:bold;font-size:14px;line-h=
+eight:15px">
+                        Re: Sequence step failure
+                      </span>
+                      <br>
+                       =20
+                        <span style=3D"font-size:11px;color:grey;line-heigh=
+t:1">
+                          This will safeguard
+an email from failing if the variable isn&#39;t filled in but it will also =
+save
+the rep from moving too quickly and sending the email before removing the
+{{! comment goes here}} section (if the &#39;comment goes here&#39;=E2=80=
+=A6
+                        </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style=3D"border-collapse:collapse;padding:5px 0px">
+                      <span style=3D"color:#999;font-weight:normal;text-ali=
+gn:right;font-size:12px;border-spacing:0;vertical-align:top;min-width:115px=
+;max-width:120px">
+                        Assigned to: David
+                      </span>
+                      <span style=3D"text-align:left;border-spacing:0;verti=
+cal-align:top;width:85px;min-width:80px;max-width:85px">
+                        <span style=3D"font-size:10px;font-weight:600;paddi=
+ng:1px 5px;background-color:white;border-radius:0.25em;min-width:80px;max-w=
+idth:80px;color:#ed5565;border:2px #ed5565 solid">
+                          Alert</span>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody></table>
+              </td>
+            </tr>
+                      <tr>
+              <td style=3D"text-align:left;font-size:15px;line-height:15px;=
+border-collapse:collapse;border-spacing:0;vertical-align:top;width:20px;min=
+-width:20px;max-width:20px;padding:3px">
+                <div style=3D"width:12px;height:12px;border:1px solid #c1c1=
+c1;margin:3px;font-size:18px"></div>
+              </td>
+              <td style=3D"padding:5px 5px 8px 5px">
+                <table>
+                  <tbody><tr>
+                    <td style=3D"text-align:left;font-size:15px;line-height=
+:14px;border-collapse:collapse;border-spacing:0;vertical-align:top">
+                      <span style=3D"font-weight:bold;font-size:14px;line-h=
+eight:15px">
+                        Re: Outreach Pilot Questions
+                      </span>
+                      <br>
+                       =20
+                        <span style=3D"font-size:11px;color:grey;line-heigh=
+t:1">
+                          I&#39;m pretty much on the road all day flying ba=
+ck from CA to PA but will be
+back at my desk tomorrow morning.
+                        </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style=3D"border-collapse:collapse;padding:5px 0px">
+                      <span style=3D"color:#999;font-weight:normal;text-ali=
+gn:right;font-size:12px;border-spacing:0;vertical-align:top;min-width:115px=
+;max-width:120px">
+                        Assigned to: Ruchir
+                      </span>
+                      <span style=3D"text-align:left;border-spacing:0;verti=
+cal-align:top;width:85px;min-width:80px;max-width:85px">
+                        <span style=3D"font-size:10px;font-weight:600;paddi=
+ng:1px 5px;background-color:white;border-radius:0.25em;min-width:80px;max-w=
+idth:80px;color:#ed5565;border:2px #ed5565 solid">
+                          Alert</span>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody></table>
+              </td>
+            </tr>
+                      <tr>
+              <td style=3D"text-align:left;font-size:15px;line-height:15px;=
+border-collapse:collapse;border-spacing:0;vertical-align:top;width:20px;min=
+-width:20px;max-width:20px;padding:3px">
+                <div style=3D"width:12px;height:12px;border:1px solid #c1c1=
+c1;margin:3px;font-size:18px"></div>
+              </td>
+              <td style=3D"padding:5px 5px 8px 5px">
+                <table>
+                  <tbody><tr>
+                    <td style=3D"text-align:left;font-size:15px;line-height=
+:14px;border-collapse:collapse;border-spacing:0;vertical-align:top">
+                      <span style=3D"font-weight:bold;font-size:14px;line-h=
+eight:15px">
+                        Re: Outbound contact create
+                      </span>
+                      <br>
+                       =20
+                        <span style=3D"font-size:11px;color:grey;line-heigh=
+t:1">
+                          There&#39;s no obvious notification
+that the Contact failed to create in Salesforce when those conditions are
+not met.
+                        </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style=3D"border-collapse:collapse;padding:5px 0px">
+                      <span style=3D"color:#999;font-weight:normal;text-ali=
+gn:right;font-size:12px;border-spacing:0;vertical-align:top;min-width:115px=
+;max-width:120px">
+                        Assigned to: David
+                      </span>
+                      <span style=3D"text-align:left;border-spacing:0;verti=
+cal-align:top;width:85px;min-width:80px;max-width:85px">
+                        <span style=3D"font-size:10px;font-weight:600;paddi=
+ng:1px 5px;background-color:white;border-radius:0.25em;min-width:80px;max-w=
+idth:80px;color:#ed5565;border:2px #ed5565 solid">
+                          Alert</span>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody></table>
+              </td>
+            </tr>
+                      <tr>
+              <td style=3D"text-align:left;font-size:15px;line-height:15px;=
+border-collapse:collapse;border-spacing:0;vertical-align:top;width:20px;min=
+-width:20px;max-width:20px;padding:3px">
+                <div style=3D"width:12px;height:12px;border:1px solid #c1c1=
+c1;margin:3px;font-size:18px"></div>
+              </td>
+              <td style=3D"padding:5px 5px 8px 5px">
+                <table>
+                  <tbody><tr>
+                    <td style=3D"text-align:left;font-size:15px;line-height=
+:14px;border-collapse:collapse;border-spacing:0;vertical-align:top">
+                      <span style=3D"font-weight:bold;font-size:14px;line-h=
+eight:15px">
+                        Updates on user 1:1&#39;s and adoption
+                      </span>
+                      <br>
+                       =20
+                        <span style=3D"font-size:11px;color:grey;line-heigh=
+t:1">
+                          I&#39;m afraid that my vacation took away from th=
+e evaluation and reps were
+needing to figure out Outreach on their own without a wingman.
+                        </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style=3D"border-collapse:collapse;padding:5px 0px">
+                      <span style=3D"color:#999;font-weight:normal;text-ali=
+gn:right;font-size:12px;border-spacing:0;vertical-align:top;min-width:115px=
+;max-width:120px">
+                        Assigned to: David
+                      </span>
+                      <span style=3D"text-align:left;border-spacing:0;verti=
+cal-align:top;width:85px;min-width:80px;max-width:85px">
+                        <span style=3D"font-size:10px;font-weight:600;paddi=
+ng:1px 5px;background-color:white;border-radius:0.25em;min-width:80px;max-w=
+idth:80px;color:#ed5565;border:2px #ed5565 solid">
+                          Alert</span>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody></table>
+              </td>
+            </tr>
+                      <tr>
+              <td style=3D"text-align:left;font-size:15px;line-height:15px;=
+border-collapse:collapse;border-spacing:0;vertical-align:top;width:20px;min=
+-width:20px;max-width:20px;padding:3px">
+                <div style=3D"width:12px;height:12px;border:1px solid #c1c1=
+c1;margin:3px;font-size:18px"></div>
+              </td>
+              <td style=3D"padding:5px 5px 8px 5px">
+                <table>
+                  <tbody><tr>
+                    <td style=3D"text-align:left;font-size:15px;line-height=
+:14px;border-collapse:collapse;border-spacing:0;vertical-align:top">
+                      <span style=3D"font-weight:bold;font-size:14px;line-h=
+eight:15px">
+                        Re: Next steps
+                      </span>
+                      <br>
+                       =20
+                        <span style=3D"font-size:11px;color:grey;line-heigh=
+t:1">
+                          I was on vacation last week and didn&#39;t get a =
+chance
+to update Ruchir and Brian in their transition on accounts.
+                        </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style=3D"border-collapse:collapse;padding:5px 0px">
+                      <span style=3D"color:#999;font-weight:normal;text-ali=
+gn:right;font-size:12px;border-spacing:0;vertical-align:top;min-width:115px=
+;max-width:120px">
+                        Assigned to: Mark
+                      </span>
+                      <span style=3D"text-align:left;border-spacing:0;verti=
+cal-align:top;width:85px;min-width:80px;max-width:85px">
+                        <span style=3D"font-size:10px;font-weight:600;paddi=
+ng:1px 5px;background-color:white;border-radius:0.25em;min-width:80px;max-w=
+idth:80px;color:#ed5565;border:2px #ed5565 solid">
+                          Alert</span>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody></table>
+              </td>
+            </tr>
+          =20
+        </tbody>
+      </table>
+     =20
+    </div>
+
+   =20
+    <div style=3D"height:40px;width:100%;margin:2em auto">
+      <span style=3D"margin-left:11em">
+        <a href=3D"https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRoc=
+p0N04Tbmgb6U8tvIlCb/click?signature=3D26c6d8c702014b84d5faa0276d2f39e45e580=
+50d&amp;url=3Dhttps%3A%2F%2Fapp.contextsmith.com%2Fprojects%2F060487a7-5aaf=
+-4f5b-835f-fc42b667cbab%2Ftasks%3Futm_source%3Duser_mailer%26utm_medium%3De=
+mail%26utm_campaign%3Dweekly_summary_email" style=3D"background-color:#ffff=
+ff;border:1px solid #2ba6cb;border-radius:9px;color:#2ba6cb;display:inline-=
+block;font-family:sans-serif;font-size:13px;line-height:30px;text-align:cen=
+ter;padding:0px 7px" title=3D"Open &quot;bluewolfgroup.com&quot; opportunit=
+y in ContextSmith app" target=3D"_blank">See more bluewolfgroup.com =E2=86=
+=92</a>=20
+      </span>
+    </div>
+
+ =20
+   =20
+    <div style=3D"margin:0;padding:12px 0px;border-top:2px dotted #ddd"></d=
+iv>
+
+   =20
+   =20
+
+
+
+   =20
+
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:=
+90%;background-color:#fff;vertical-align:top">
+      <tbody>
+        <tr>
+          <td><div style=3D"border-bottom:1px solid #c1c1c1;padding-bottom:=
+5px">
+            <div style=3D"display:inline-block;padding-top:19px;height:100%=
+">
+              <span style=3D"color:#666;text-overflow:ellipsis;font-size:24=
+px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Arial,sans-serif;text-dec=
+oration:none">Gro-Intelligence</span>
+             =20
+              <span style=3D"margin:0 0.4em;font-size:24px;border-left:1px =
+solid #ccc"></span>
+              <span style=3D"font-size:14px;font-weight:bold;font-family:&#=
+39;Helvetica Neue&#39;,Helvetica,Arial,sans-serif;text-overflow:ellipsis">G=
+ro-Intelligence</span>
+            </div>
+           =20
+            <div style=3D"display:none;float:right;color:#fff">.</div>=20
+            <div style=3D"display:none;float:right;margin-right:2px;width:3=
+6px;height:36px;border-radius:50%;border:1px solid #737373;opacity:0.8;back=
+ground-color:#fff" title=3D"Status: None"></div>=20
+          </div>
+        </td></tr>
+        <tr>
+          <td>
+           =20
+            <table style=3D"border:solid 1px #c1c1c1;margin-top:10px;paddin=
+g:0.3em;border-radius:15px;display:inline-block">=20
+              <tbody>
+                <tr>
+                  <td style=3D"text-align:center;padding-bottom:6px;color:#=
+999;text-overflow:ellipsis;font-size:19px;font-family:&#39;Helvetica Neue&#=
+39;,Helvetica,Arial,sans-serif;border-bottom:solid;border-bottom-width:1px"=
+>Status Summary</td>
+                </tr>
+                <tr> =20
+                  <td>=20
+                    <div style=3D"padding:0 10px;margin:0 0.1em">
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#ffa500;font-size:36px;f=
+ont-weight:bold;vertical-align:middle;line-height:initial;display:inline-bl=
+ock">60</span>
+                              <span style=3D"color:#ffa500;font-size:16px;p=
+adding:4px;width:60px;height:40px;vertical-align:middle;display:inline-bloc=
+k">Medium Risk</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"color:#999;font-size:14px;padding-=
+right:0px;min-width:140px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Ar=
+ial,sans-serif;line-height:initial">
+                              <div>
+                                -
+                              =C2=A0=C2=A0No change
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#666;font-size:36px;font=
+-weight:bold;vertical-align:middle;line-height:initial;display:inline-block=
+">1</span>
+                              <span style=3D"color:#666;font-size:16px;padd=
+ing:4px;max-width:70px;height:40px;vertical-align:middle;display:inline-blo=
+ck">Open Alert</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"color:#999;font-size:14px;padding-=
+right:0px;min-width:150px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Ar=
+ial,sans-serif;line-height:initial">
+                                -
+                              =C2=A0=C2=A0No change=20
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#666;font-size:36px;font=
+-weight:bold;vertical-align:middle;line-height:initial;display:inline-block=
+">1</span>
+                              <span style=3D"color:#666;font-size:16px;padd=
+ing:4px;max-width:70px;height:40px;vertical-align:middle;display:inline-blo=
+ck">Open Task</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"line-height:initial">=C2=A0</td>
+                          </tr>=20
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+   =20
+    <div style=3D"margin:0">
+      <table class=3D"m_395852192419412221row" style=3D"padding:0;margin:0;=
+width:100%;border-collapse:collapse">
+        <tbody style=3D"width:100%;display:table">
+          <tr>
+          </tr>
+         =20
+        </tbody>
+      </table>
+    </div>=20
+
+   =20
+    <div style=3D"margin:0;font-size:14px">
+     =20
+      <table class=3D"m_395852192419412221row" style=3D"font-size:14px;padd=
+ing:0;margin:0;width:100%;border-collapse:collapse">
+        <tbody style=3D"width:100%;display:table;margin-top:2em">
+          <tr>
+            <td style=3D"font-weight:bold;color:green;vertical-align:middle=
+">
+              <span>Open Alerts &amp; Next Steps:</span>
+            </td>
+            <td class=3D"m_395852192419412221expander"></td>
+            <td style=3D"font-weight:bold;padding:6px;text-align:right">
+              <a href=3D"https://app.contextsmith.com/ahoy/messages/vNlQQKF=
+u9pRocp0N04Tbmgb6U8tvIlCb/click?signature=3D7d17fd4e929ef23be1215ffb5fd8d10=
+770bf41a8&amp;url=3Dhttps%3A%2F%2Fapp.contextsmith.com%2Fprojects%2F8aee0bd=
+8-dfb9-4120-9e89-8ed436bc63cc%2Ftasks%3Futm_source%3Duser_mailer%26utm_medi=
+um%3Demail%26utm_campaign%3Dweekly_summary_email" style=3D"display:inline-b=
+lock;font-family:sans-serif;line-height:25px;text-align:center;text-decorat=
+ion:none" target=3D"_blank">Go to Alerts &amp; Tasks =C2=BB</a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+     =20
+      <table border=3D"0" cellspacing=3D"0" cellpadding=3D"0" style=3D"padd=
+ing:0;border:0;width:100%;border-spacing:0;border-collapse:collapse;text-al=
+ign:left;margin:4px 0!important">
+        <tbody>
+            <tr>
+              <td style=3D"text-align:left;font-size:15px;line-height:15px;=
+border-collapse:collapse;border-spacing:0;vertical-align:top;width:20px;min=
+-width:20px;max-width:20px;padding:3px">
+                <div style=3D"width:12px;height:12px;border:1px solid #c1c1=
+c1;margin:3px;font-size:18px"></div>
+              </td>
+              <td style=3D"padding:5px 5px 8px 5px">
+                <table>
+                  <tbody><tr>
+                    <td style=3D"text-align:left;font-size:15px;line-height=
+:14px;border-collapse:collapse;border-spacing:0;vertical-align:top">
+                      <span style=3D"font-weight:bold;font-size:14px;line-h=
+eight:15px">
+                        Inactive for 61 days!
+                      </span>
+                      <br>
+                       =20
+                        <span style=3D"font-size:11px;color:grey;line-heigh=
+t:1">
+                          Days Inactive for Gro-Intelligence exceeded High =
+Threshold at 61 days.
+                        </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style=3D"border-collapse:collapse;padding:5px 0px">
+                      <span style=3D"color:#999;font-weight:normal;text-ali=
+gn:right;font-size:12px;border-spacing:0;vertical-align:top;min-width:115px=
+;max-width:120px">
+                        Assigned to: Ruchir
+                      </span>
+                      <span style=3D"text-align:left;border-spacing:0;verti=
+cal-align:top;width:85px;min-width:80px;max-width:85px">
+                        <span style=3D"font-size:10px;font-weight:600;paddi=
+ng:1px 5px;background-color:white;border-radius:0.25em;min-width:80px;max-w=
+idth:80px;color:#ed5565;border:2px #ed5565 solid">
+                          Alert</span>
+                      </span>
+                    </td>
+                  </tr>
+                </tbody></table>
+              </td>
+            </tr>
+          =20
+        </tbody>
+      </table>
+     =20
+    </div>
+
+   =20
+    <div style=3D"height:40px;width:100%;margin:2em auto">
+      <span style=3D"margin-left:11em">
+        <a href=3D"https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRoc=
+p0N04Tbmgb6U8tvIlCb/click?signature=3D7d17fd4e929ef23be1215ffb5fd8d10770bf4=
+1a8&amp;url=3Dhttps%3A%2F%2Fapp.contextsmith.com%2Fprojects%2F8aee0bd8-dfb9=
+-4120-9e89-8ed436bc63cc%2Ftasks%3Futm_source%3Duser_mailer%26utm_medium%3De=
+mail%26utm_campaign%3Dweekly_summary_email" style=3D"background-color:#ffff=
+ff;border:1px solid #2ba6cb;border-radius:9px;color:#2ba6cb;display:inline-=
+block;font-family:sans-serif;font-size:13px;line-height:30px;text-align:cen=
+ter;padding:0px 7px" title=3D"Open &quot;Gro-Intelligence&quot; opportunity=
+ in ContextSmith app" target=3D"_blank">See more Gro-Intelligence =E2=86=92=
+</a>=20
+      </span>
+    </div>
+
+ =20
+   =20
+    <div style=3D"margin:0;padding:12px 0px;border-top:2px dotted #ddd"></d=
+iv>
+
+   =20
+   =20
+
+
+       =20
+
+   =20
+
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" style=3D"width:=
+90%;background-color:#fff;vertical-align:top">
+      <tbody>
+        <tr>
+          <td><div style=3D"border-bottom:1px solid #c1c1c1;padding-bottom:=
+5px">
+            <div style=3D"display:inline-block;padding-top:19px;height:100%=
+">
+              <span style=3D"color:#666;text-overflow:ellipsis;font-size:24=
+px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Arial,sans-serif;text-dec=
+oration:none"><a href=3D"http://rand.com" target=3D"_blank">rand.com</a></s=
+pan>
+             =20
+              <span style=3D"margin:0 0.4em;font-size:24px;border-left:1px =
+solid #ccc"></span>
+              <span style=3D"font-size:14px;font-weight:bold;font-family:&#=
+39;Helvetica Neue&#39;,Helvetica,Arial,sans-serif;text-overflow:ellipsis"><=
+a href=3D"http://rand.com" target=3D"_blank">rand.com</a></span>
+            </div>
+           =20
+            <div style=3D"display:none;float:right;color:#fff">.</div>=20
+            <div style=3D"display:none;float:right;margin-right:2px;width:3=
+6px;height:36px;border-radius:50%;border:1px solid #737373;opacity:0.8;back=
+ground-color:#fff" title=3D"Status: None"></div>=20
+          </div>
+        </td></tr>
+        <tr>
+          <td>
+           =20
+            <table style=3D"border:solid 1px #c1c1c1;margin-top:10px;paddin=
+g:0.3em;border-radius:15px;display:inline-block">=20
+              <tbody>
+                <tr>
+                  <td style=3D"text-align:center;padding-bottom:6px;color:#=
+999;text-overflow:ellipsis;font-size:19px;font-family:&#39;Helvetica Neue&#=
+39;,Helvetica,Arial,sans-serif;border-bottom:solid;border-bottom-width:1px"=
+>Status Summary</td>
+                </tr>
+                <tr> =20
+                  <td>=20
+                    <div style=3D"padding:0 10px;margin:0 0.1em">
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#a1c436;font-size:36px;f=
+ont-weight:bold;vertical-align:middle;line-height:initial;display:inline-bl=
+ock">0</span>
+                              <span style=3D"color:#a1c436;font-size:16px;p=
+adding:4px;width:60px;height:40px;vertical-align:middle;display:inline-bloc=
+k">Low Risk</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"color:#999;font-size:14px;padding-=
+right:0px;min-width:140px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Ar=
+ial,sans-serif;line-height:initial">
+                              <div>
+                                -
+                              =C2=A0=C2=A0No change
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#666;font-size:36px;font=
+-weight:bold;vertical-align:middle;line-height:initial;display:inline-block=
+">0</span>
+                              <span style=3D"color:#666;font-size:16px;padd=
+ing:4px;max-width:70px;height:40px;vertical-align:middle;display:inline-blo=
+ck">Open Alerts</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"color:#999;font-size:14px;padding-=
+right:0px;min-width:150px;font-family:&#39;Helvetica Neue&#39;,Helvetica,Ar=
+ial,sans-serif;line-height:initial">
+                                -
+                              =C2=A0=C2=A0No change=20
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                     =20
+                      <table style=3D"font-family:&#39;Helvetica Neue&#39;,=
+Helvetica,Arial,sans-serif;display:inline-block">
+                        <tbody>
+                          <tr>
+                           =20
+                            <td>
+                              <span style=3D"color:#666;font-size:36px;font=
+-weight:bold;vertical-align:middle;line-height:initial;display:inline-block=
+">0</span>
+                              <span style=3D"color:#666;font-size:16px;padd=
+ing:4px;max-width:70px;height:40px;vertical-align:middle;display:inline-blo=
+ck">Open Tasks</span>
+                            </td>
+                          </tr>
+                          <tr>
+                           =20
+                            <td style=3D"line-height:initial">=C2=A0</td>
+                          </tr>=20
+                        </tbody>
+                      </table>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+   =20
+    <div style=3D"margin:0">
+      <table class=3D"m_395852192419412221row" style=3D"padding:0;margin:0;=
+width:100%;border-collapse:collapse">
+        <tbody style=3D"width:100%;display:table">
+ =20
+        </tbody>
+      </table>
+    </div>=20
+
+   =20
+    <div style=3D"margin:0;font-size:14px">
+      <span style=3D"margin:1em 0em;font-size:15px;font-weight:bold;color:#=
+a1c436">No Open Alerts or Next Steps.</span>
+ =20
+    </div>
+
+   =20
+    <div style=3D"height:40px;width:100%;margin:2em auto">
+      <span style=3D"margin-left:13em">
+        <a href=3D"https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRoc=
+p0N04Tbmgb6U8tvIlCb/click?signature=3D0476b50be40ed74c810e062448da921ef568f=
+127&amp;url=3Dhttps%3A%2F%2Fapp.contextsmith.com%2Fprojects%2Ff52fce2b-2602=
+-4dda-b45b-bf294cac856c%2Ftasks%3Futm_source%3Duser_mailer%26utm_medium%3De=
+mail%26utm_campaign%3Dweekly_summary_email" style=3D"background-color:#ffff=
+ff;border:1px solid #2ba6cb;border-radius:9px;color:#2ba6cb;display:inline-=
+block;font-family:sans-serif;font-size:13px;line-height:30px;text-align:cen=
+ter;padding:0px 7px" title=3D"Open &quot;rand.com&quot; opportunity in Cont=
+extSmith app" target=3D"_blank">See more rand.com =E2=86=92</a>=20
+      </span>
+    </div>
+
+  =20
+</div>
+
+
+<table class=3D"m_395852192419412221row m_395852192419412221callout" style=
+=3D"border-spacing:0;border-collapse:collapse;vertical-align:top;text-align=
+:left;width:100%;display:block;padding:0px;margin-bottom:20px">
+  <tbody><tr style=3D"vertical-align:top;text-align:left;padding:0" align=
+=3D"left">
+     <td class=3D"m_395852192419412221wrapper m_395852192419412221last" ali=
+gn=3D"left" valign=3D"top">
+        <table class=3D"m_395852192419412221twelve m_395852192419412221colu=
+mns">
+           <tbody><tr align=3D"left">
+              <td class=3D"m_395852192419412221panel" style=3D"word-break:b=
+reak-word;border-collapse:collapse!important;vertical-align:top;text-align:=
+left;color:#222222;line-height:19px;font-size:14px;background:#ecf8ff;margi=
+n:0;padding:10px;border:1px solid #b9e5ff" align=3D"left" bgcolor=3D"#ECF8F=
+F" valign=3D"top">
+                 <p style=3D"color:#222222;font-weight:normal;text-align:le=
+ft;line-height:19px;font-size:14px;margin:0 0 10px;padding:0" align=3D"left=
+">
+                  Want to receive your team&#39;s task summary in this e-ma=
+il?=20
+                  <a href=3D"https://app.contextsmith.com/ahoy/messages/vNl=
+QQKFu9pRocp0N04Tbmgb6U8tvIlCb/click?signature=3D2f9078d53ecb3fbabcd784ed1a2=
+11253021e12b3&amp;url=3Dhttps%3A%2F%2Fapp.contextsmith.com%2Fsettings%3Futm=
+_source%3Duser_mailer%26utm_medium%3Demail%26utm_campaign%3Dweekly_summary_=
+email" style=3D"background-color:#3c8dc5;border-radius:4px;color:#ffffff;di=
+splay:inline-block;font-family:sans-serif;font-size:13px;font-weight:bold;l=
+ine-height:25px;text-align:center;text-decoration:none;width:90px" target=
+=3D"_blank">Invite team</a>
+                  <br><br>
+                  How can we make ContextSmith more useful for you? We&#39;=
+d love to hear your feedback! Please send us a note at <a style=3D"color:#2=
+ba6cb;text-decoration:none" href=3D"mailto:support@contextsmith.com?subject=
+=3DFeedback!" target=3D"_blank">support@contextsmith.com</a> or follow us o=
+n <a style=3D"color:#2ba6cb;text-decoration:none" href=3D"https://app.conte=
+xtsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvIlCb/click?signature=
+=3De64d5a35de607c7adcf89f1c95c584d8c62e6d0a&amp;url=3Dhttps%3A%2F%2Ftwitter=
+.com%2FContextSmith%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26utm_c=
+ampaign%3Dweekly_summary_email" target=3D"_blank">Twitter</a> for updates.
+                </p>
+              </td>
+              <td class=3D"m_395852192419412221expander"></td>
+           </tr>
+        </tbody></table>
+     </td>
+  </tr>
+</tbody></table>
+
+<table class=3D"m_395852192419412221row" border=3D"0" cellspacing=3D"0" cel=
+lpadding=3D"0" style=3D"margin:0;padding:0;border:0;text-align:left;border-=
+collapse:collapse;border-spacing:0">
+<tbody><tr><td><p style=3D"color:#333;font-weight:normal;text-align:left;li=
+ne-height:20px;font-size:14px;margin:0 0 10px;padding:0" align=3D"center">
+Click <a href=3D"https://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0=
+N04Tbmgb6U8tvIlCb/click?signature=3D04362577861a4e750248b236ede24a4fd8be525=
+8&amp;url=3Dhttps%3A%2F%2Fapp.contextsmith.com%2Fprojects%3Futm_source%3Dus=
+er_mailer%26utm_medium%3Demail%26utm_campaign%3Dweekly_summary_email" targe=
+t=3D"_blank"><span style=3D"text-decoration:underline">here to Subscribe or=
+ Unsubscribe</span></a> to weekly and daily summaries.
+</p></td></tr>
+</tbody></table>
+
+
+                          =20
+                           <table class=3D"m_395852192419412221row m_395852=
+192419412221footer" style=3D"border-spacing:0;border-collapse:collapse;vert=
+ical-align:top;text-align:left;width:100%;display:block;padding:20px 0 0 0;=
+margin-top:30px;border-top:1px solid #aaa">
+                              <tbody><tr style=3D"vertical-align:top;text-a=
+lign:left;padding:0" align=3D"left">
+                                =20
+                                =20
+                                 <td class=3D"m_395852192419412221wrapper" =
+style=3D"word-break:break-word;border-collapse:collapse!important;vertical-=
+align:top;text-align:left;line-height:19px;font-size:14px;margin:0;padding:=
+0 0 0 10px" align=3D"left" bgcolor=3D"#fff" valign=3D"top">
+                                    <table class=3D"m_395852192419412221six=
+ m_395852192419412221columns" style=3D"border-spacing:0;border-collapse:col=
+lapse;vertical-align:top;text-align:left;width:280px;margin:0 auto;padding:=
+0">
+                                       <tbody><tr style=3D"vertical-align:t=
+op;text-align:left;padding:0" align=3D"left">
+                                          <td class=3D"m_395852192419412221=
+med-width" style=3D"word-break:break-word;border-collapse:collapse!importan=
+t;vertical-align:top;text-align:left;display:table-cell;padding:0" align=3D=
+"left" valign=3D"top">
+                                             <span class=3D"m_3958521924194=
+12221issued m_395852192419412221invite" style=3D"font-size:11px;color:#b2b2=
+b2;display:inline-block">
+                                             <span class=3D"m_3958521924194=
+12221invite-span" style=3D"text-align:left">
+                                             <strong>ContextSmith, Inc.</st=
+rong><br>
+                                                <span class=3D"m_3958521924=
+19412221ios-footer">
+                                                   Made in Mountain View, C=
+A<br>
+                                                </span>
+                                             <a href=3D"https://app.context=
+smith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvIlCb/click?signature=3D=
+844f3923981013230c005ad7a281f6d88781857e&amp;url=3Dhttp%3A%2F%2Fwww.context=
+smith.com%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26utm_campaign%3D=
+weekly_summary_email" target=3D"_blank">ContextSmith.com</a> | <a href=3D"h=
+ttps://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvIlCb/=
+click?signature=3Dd401adcaf4a76092b8f90ece291f2a9ac9ab2286&amp;url=3Dhttp%3=
+A%2F%2Fwww.contextsmith.com%2Fblog%3Futm_source%3Duser_mailer%26utm_medium%=
+3Demail%26utm_campaign%3Dweekly_summary_email" target=3D"_blank">Our blog</=
+a><br>
+                                             </span>
+                                             </span>
+                                          </td>
+                                          <td class=3D"m_395852192419412221=
+expander" style=3D"word-break:break-word;border-collapse:collapse!important=
+;vertical-align:top;text-align:left;width:0px;color:#222222;line-height:19p=
+x;font-size:14px;margin:0;padding:0" align=3D"left" valign=3D"top"></td>
+                                       </tr>
+                                    </tbody></table>
+                                 </td>
+
+                                =20
+                                 <td class=3D"m_395852192419412221wrapper" =
+style=3D"word-break:break-word;border-collapse:collapse!important;vertical-=
+align:top;text-align:right;display:table-cell;width:300px;padding:0 30px 0 =
+0" align=3D"right" valign=3D"top">
+                                    <table class=3D"m_395852192419412221six=
+ m_395852192419412221columns" style=3D"border-spacing:0;border-collapse:col=
+lapse;vertical-align:top;text-align:right;width:280px;margin:0 auto;padding=
+:0">
+                                        <tbody><tr style=3D"vertical-align:=
+top;text-align:right;padding:0" align=3D"right">
+                                          <td class=3D"m_395852192419412221=
+med-width" style=3D"word-break:break-word;border-collapse:collapse!importan=
+t;vertical-align:top;text-align:right;display:table-cell;padding:0" align=
+=3D"right" valign=3D"top">
+                                             <span class=3D"m_3958521924194=
+12221issued m_395852192419412221share-icon-span" style=3D"font-size:11px;co=
+lor:#b2b2b2;display:inline-block;text-align:right">
+                                             <a href=3D"https://app.context=
+smith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvIlCb/click?signature=3D=
+7bee2908575eaf6dabecbd2183a2603cd032a521&amp;url=3Dhttps%3A%2F%2Fwww.facebo=
+ok.com%2FContextSmith%2F%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26=
+utm_campaign%3Dweekly_summary_email" style=3D"color:#b2b2b2!important;text-=
+decoration:underline;font-size:11px" target=3D"_blank">
+                                             <img width=3D"8" height=3D"16"=
+ class=3D"m_395852192419412221share-icons" id=3D"m_395852192419412221cid_sh=
+are_facebook" src=3D"http://d1a3f4spazzrp4.cloudfront.net/receipt-new/faceb=
+ook@2x.png" style=3D"outline:none;text-decoration:none;float:none;clear:non=
+e;display:inline;padding:3px 0 0 10px;border:none" align=3D"none"></a>
+                                             <a href=3D"https://app.context=
+smith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvIlCb/click?signature=3D=
+e64d5a35de607c7adcf89f1c95c584d8c62e6d0a&amp;url=3Dhttps%3A%2F%2Ftwitter.co=
+m%2FContextSmith%3Futm_source%3Duser_mailer%26utm_medium%3Demail%26utm_camp=
+aign%3Dweekly_summary_email" style=3D"color:#b2b2b2!important;text-decorati=
+on:underline;font-size:11px" target=3D"_blank">
+                                             <img width=3D"17" height=3D"14=
+" class=3D"m_395852192419412221share-icons" id=3D"m_395852192419412221cid_s=
+hare_twitter" src=3D"http://d1a3f4spazzrp4.cloudfront.net/receipt-new/twitt=
+er@2x.png" style=3D"outline:none;text-decoration:none;float:none;clear:none=
+;display:inline;padding:3px 0 0 10px;border:none" align=3D"none"></a>
+                                             <a href=3D"mailto:info@context=
+smith.com" style=3D"color:#b2b2b2!important;text-decoration:underline;font-=
+size:11px" target=3D"_blank">
+                                             <img width=3D"20" height=3D"12=
+" class=3D"m_395852192419412221share-icons" id=3D"m_395852192419412221cid_s=
+hare_email" src=3D"http://d1a3f4spazzrp4.cloudfront.net/receipt-new/mail@2x=
+.png" style=3D"outline:none;text-decoration:none;float:none;clear:none;disp=
+lay:inline;padding:3px 0 0 10px;border:none" align=3D"none"></a></span>
+                                          </td>
+                                       </tr>
+                                    </tbody></table>
+                                 </td>
+                              </tr>
+                           </tbody></table>
+                           <table class=3D"m_395852192419412221row" style=
+=3D"border-spacing:0;border-collapse:collapse;vertical-align:top;text-align=
+:left;width:100%;display:block;padding:0px">
+                              <tbody><tr style=3D"vertical-align:top;text-a=
+lign:left;padding:0" align=3D"left">
+                                 <td class=3D"m_395852192419412221wrapper m=
+_395852192419412221last" style=3D"word-break:break-word;border-collapse:col=
+lapse!important;vertical-align:top;text-align:left;color:#222222;line-heigh=
+t:19px;font-size:14px;margin:0;padding:10px 0px 0px" align=3D"left" valign=
+=3D"top">
+                                    <table class=3D"m_395852192419412221twe=
+lve m_395852192419412221columns" style=3D"border-spacing:0;border-collapse:=
+collapse;vertical-align:top;text-align:left;width:580px;margin:0 auto;paddi=
+ng:0">
+                                       <tbody><tr style=3D"vertical-align:t=
+op;text-align:left;padding:0" align=3D"left">
+                                          <td align=3D"center" style=3D"wor=
+d-break:break-word;border-collapse:collapse!important;vertical-align:top;te=
+xt-align:left;color:#222222;line-height:19px;font-size:14px;margin:0;paddin=
+g:0px 0px 10px" valign=3D"top">
+                                             <center style=3D"width:100%;mi=
+n-width:580px">
+                                                <span class=3D"m_3958521924=
+19412221driver-header-text" style=3D"padding-bottom:15px;padding-top:5px;di=
+splay:inline-block;font-size:10px;color:#aaa">
+                                                   You are receiving this e=
+-mail because you signed up at or your teammate invited you to <a href=3D"h=
+ttps://app.contextsmith.com/ahoy/messages/vNlQQKFu9pRocp0N04Tbmgb6U8tvIlCb/=
+click?signature=3D844f3923981013230c005ad7a281f6d88781857e&amp;url=3Dhttp%3=
+A%2F%2Fwww.contextsmith.com%3Futm_source%3Duser_mailer%26utm_medium%3Demail=
+%26utm_campaign%3Dweekly_summary_email" style=3D"color:#999999" target=3D"_=
+blank">ContextSmith.com</a>.
+                                                </span>
+                                             </center>
+                                          </td>
+                                          <td class=3D"m_395852192419412221=
+expander" style=3D"word-break:break-word;border-collapse:collapse!important=
+;vertical-align:top;text-align:left;width:0px;color:#222222;line-height:19p=
+x;font-size:14px;margin:0;padding:0" align=3D"left" valign=3D"top"></td>
+                                       </tr>
+                                    </tbody></table>
+                                 </td>
+                              </tr>
+                           </tbody></table>
+                          =20
+                        </td>
+                     </tr>
+                  </tbody></table>
+               </center>
+            </td>
+         </tr>
+      </tbody></table>
+   <img alt=3D"" src=3D"https://app.contextsmith.com/ahoy/messages/vNlQQKFu=
+9pRocp0N04Tbmgb6U8tvIlCb/open.gif" width=3D"1" height=3D"1">
+<img src=3D"https://mandrillapp.com/track/open.php?u=3D30775417&amp;id=3Dbb=
+a9fde95c64414d910ac174ee81c2fb" height=3D"1" width=3D"1"></div>
+
+</blockquote></div><br></div>
+
+--001a1143d336b9dcb7055505515a--

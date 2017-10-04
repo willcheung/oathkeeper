@@ -1,6 +1,9 @@
 package com.contextsmith.api.service;
 
 import com.contextsmith.api.data.*;
+import com.contextsmith.api.data.Contact;
+import com.contextsmith.api.data.Conversation;
+import com.contextsmith.api.data.EmailMessage;
 import com.contextsmith.email.cluster.EmailClusterer;
 import com.contextsmith.email.cluster.EmailClusterer.ClusteringMethod;
 import com.contextsmith.email.provider.GmailQueryBuilder;
@@ -12,16 +15,24 @@ import com.contextsmith.email.provider.exchange.ExchangeServiceProvider;
 import com.contextsmith.utils.*;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.services.gmail.Gmail;
+import com.google.api.services.gmail.model.Message;
 import com.google.common.base.Stopwatch;
 import com.martiansoftware.validation.Hope;
 import com.martiansoftware.validation.UncheckedValidationException;
 import microsoft.exchange.webservices.data.autodiscover.exception.AutodiscoverLocalException;
 import microsoft.exchange.webservices.data.autodiscover.exception.AutodiscoverUnauthorizedException;
 import microsoft.exchange.webservices.data.core.ExchangeService;
+import microsoft.exchange.webservices.data.core.PropertySet;
+import microsoft.exchange.webservices.data.core.enumeration.property.BasePropertySet;
 import microsoft.exchange.webservices.data.core.enumeration.search.ResolveNameSearchLocation;
-import microsoft.exchange.webservices.data.core.service.item.Contact;
+import microsoft.exchange.webservices.data.core.service.item.*;
+import microsoft.exchange.webservices.data.core.service.schema.EmailMessageSchema;
 import microsoft.exchange.webservices.data.misc.NameResolutionCollection;
+import microsoft.exchange.webservices.data.property.complex.*;
+import microsoft.exchange.webservices.data.property.complex.Attachment;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.validator.routines.EmailValidator;
 import org.apache.commons.validator.routines.UrlValidator;
@@ -29,11 +40,16 @@ import org.eclipse.jetty.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.mail.MessagingException;
+import javax.mail.Part;
+import javax.mail.Session;
 import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
-import java.io.File;
-import java.io.IOException;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.StreamingOutput;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -54,6 +70,84 @@ public class NewsFeeder {
 
     public static enum MessageType {EMAIL, EVENT}
 
+
+    @POST
+    @Path("download")
+    @Produces(MediaType.WILDCARD)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public static Response locate(String body) {
+        Location location = StringUtil.getGsonInstance().fromJson(body, Location.class);
+
+        MimePartConverter converter = (inputStream, mediaType, name) -> Response.ok((StreamingOutput) outputStream -> {
+            IOUtils.copy(inputStream, outputStream);
+        }, mediaType).header("Content-Disposition", "attachment=" + name).build();
+
+        switch (location.source.kind) {
+            case gmail:
+                GoogleServiceProvider googleServiceProvider = new GoogleServiceProvider(location.source.token);
+                return locateGmail(location.urn, googleServiceProvider.getGmailService(), converter);
+            case exchange:
+                try (ExchangeService service = new ExchangeServiceProvider().connectAsUser(location.source.email, location.source.password.toCharArray(), location.source.url)) {
+                    return locateExchangeMail(location.urn, service, converter);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                break;
+
+        }
+        return Response.status(404).build();
+    }
+
+    interface MimePartConverter {
+        Response apply(InputStream content, String mimeType, String attachmentName);
+    }
+
+    private static Response locateGmail(String urn, Gmail gmailService, MimePartConverter converter) {
+        return MimeMessageUtil.fromURN(urn, (provider, email, internalID, fragment) -> {
+            try {
+                Message message = gmailService.users().messages().get(email, internalID).setFormat("raw").execute();
+                byte[] emailBytes = org.apache.commons.codec.binary.Base64.decodeBase64(message.getRaw());
+                InputStream rawMessage = new ByteArrayInputStream(emailBytes);
+                if (fragment == null) {
+                    return converter.apply(rawMessage, "message/rfc822", "e-mail.msg");
+                } else { // parse the message, get the attachment TODO support for attachment IDs;
+                    MimeMessage msg = new MimeMessage(Session.getDefaultInstance(new Properties()), rawMessage);
+                    Part p = MimeMessageUtil.getAttachmentByPath(msg, fragment);
+                    return converter.apply(p.getInputStream(), p.getContentType(), p.getFileName());
+                }
+            } catch (MessagingException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        });
+    }
+
+    private static Response locateExchangeMail(String urn, ExchangeService service, MimePartConverter converter) {
+        return MimeMessageUtil.fromURN(urn, (provider, email, internalID, fragment) -> {
+            try {
+                ItemId itemId = new ItemId(internalID);
+                microsoft.exchange.webservices.data.core.service.item.EmailMessage msg =
+                        microsoft.exchange.webservices.data.core.service.item.EmailMessage.bind(service, itemId, new PropertySet(BasePropertySet.FirstClassProperties, EmailMessageSchema.Attachments));
+                for (Attachment att : msg.getAttachments()) {
+                    if (att.getId().equals(fragment)) { // found the right attachment
+                        att.load();
+                        if (att instanceof FileAttachment) {
+                            FileAttachment file = (FileAttachment) att;
+                            // unfortunately, we have to materialze the whole attachment TODO: change it
+                            return converter.apply(new ByteArrayInputStream(file.getContent()), file.getContentType(), file.getFileName());
+                        } else {
+                            log.warn("Unable to receive attachment " + att);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        });
+    }
 
     /** Test curl:
      * curl -X POST -H 'Content-Type:application/json' -d '{"email": "beders@contextsmith.onmicrosoft.com", "password": "askjochen:)" }' http://localhost:8888/newsfeed/auth
@@ -86,7 +180,7 @@ public class NewsFeeder {
             NameResolutionCollection resolutions = service.resolveName(source.email, ResolveNameSearchLocation.DirectoryOnly, true);
             com.contextsmith.api.data.Contact contact = null;
             if (resolutions.getCount() > 0) {
-                Contact msContact = resolutions.iterator().next().getContact();
+                microsoft.exchange.webservices.data.core.service.item.Contact msContact = resolutions.iterator().next().getContact();
                 if (msContact != null) {
                     contact = new com.contextsmith.api.data.Contact();
                     contact.givenName = msContact.getGivenName();
@@ -255,8 +349,11 @@ public class NewsFeeder {
             request.setInternalDomain(internalDomain);
         } else if (StringUtils.isNotBlank(tokenEmailDomain)) {
             request.setInternalDomain(tokenEmailDomain);
-        } else {
-            return makeJsonError("Missing company's internal domain.");
+        } else  {
+            // extract internal domain from first source in request
+            String intDomain = InternetAddressUtil.getAddressDomain(request.getSourceConfiguration().sources[0].email);
+            request.setInternalDomain(intDomain);
+            //return makeJsonError("Missing company's internal domain.");
         }
         log.info("[{}] sent a request: {}", request.getInternalDomain(), request.toString());
 

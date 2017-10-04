@@ -1,43 +1,34 @@
 package com.contextsmith.email.provider;
 
-import static com.google.common.base.Preconditions.checkNotNull;
+import com.contextsmith.api.data.EmailMessage;
+import com.contextsmith.api.data.Messageable;
+import com.contextsmith.api.service.Source;
+import com.contextsmith.email.cluster.EmailNameResolver;
+import com.contextsmith.email.provider.exchange.ExchangeServiceProvider;
+import com.contextsmith.email.provider.exchange.MimeMessageProducer;
+import com.contextsmith.utils.MimeMessageUtil;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.common.base.Stopwatch;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import microsoft.exchange.webservices.data.core.ExchangeService;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 
+import javax.mail.Address;
+import javax.mail.MessagingException;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import javax.mail.Address;
-import javax.mail.MessagingException;
-import javax.mail.internet.InternetAddress;
-import javax.mail.internet.MimeMessage;
-
-import com.contextsmith.api.service.Source;
-import com.contextsmith.email.provider.exchange.ExchangeServiceProvider;
-import com.contextsmith.email.provider.exchange.MimeMessageProducer;
-import microsoft.exchange.webservices.data.core.ExchangeService;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.math3.analysis.function.Add;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.contextsmith.api.data.EmailMessage;
-import com.contextsmith.api.data.Messageable;
-import com.contextsmith.email.cluster.EmailNameResolver;
-import com.contextsmith.utils.MimeMessageUtil;
-import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.common.base.Stopwatch;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import reactor.core.publisher.Flux;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 // TODO(rcwang): Make executor service static.
 public class UserInboxCrawler {
@@ -210,7 +201,7 @@ public class UserInboxCrawler {
             try {
                 msg = new EmailMessage().loadFrom(mimeMessage, this.enResolver);
             } catch (IOException | MessagingException e) {
-                log.error(e.toString());
+                log.error("Unable to extract message data", e);
                 e.printStackTrace();
             }
             if (msg != null) this.messages.add(msg);

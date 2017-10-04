@@ -1,9 +1,6 @@
 package com.contextsmith.api.service;
 
 import com.contextsmith.api.data.*;
-import com.contextsmith.api.data.Contact;
-import com.contextsmith.api.data.Conversation;
-import com.contextsmith.api.data.EmailMessage;
 import com.contextsmith.email.cluster.EmailClusterer;
 import com.contextsmith.email.cluster.EmailClusterer.ClusteringMethod;
 import com.contextsmith.email.provider.GmailQueryBuilder;
@@ -26,11 +23,11 @@ import microsoft.exchange.webservices.data.core.ExchangeService;
 import microsoft.exchange.webservices.data.core.PropertySet;
 import microsoft.exchange.webservices.data.core.enumeration.property.BasePropertySet;
 import microsoft.exchange.webservices.data.core.enumeration.search.ResolveNameSearchLocation;
-import microsoft.exchange.webservices.data.core.service.item.*;
 import microsoft.exchange.webservices.data.core.service.schema.EmailMessageSchema;
 import microsoft.exchange.webservices.data.misc.NameResolutionCollection;
-import microsoft.exchange.webservices.data.property.complex.*;
 import microsoft.exchange.webservices.data.property.complex.Attachment;
+import microsoft.exchange.webservices.data.property.complex.FileAttachment;
+import microsoft.exchange.webservices.data.property.complex.ItemId;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -49,7 +46,10 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.StreamingOutput;
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -115,10 +115,9 @@ public class NewsFeeder {
                     Part p = MimeMessageUtil.getAttachmentByPath(msg, fragment);
                     return converter.apply(p.getInputStream(), p.getContentType(), p.getFileName());
                 }
-            } catch (MessagingException e) {
+            } catch (MessagingException | IOException e) {
                 e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
+                log.error("Unable to parse message", e);
             }
             return null;
         });
@@ -224,7 +223,7 @@ public class NewsFeeder {
         SourceConfiguration config = StringUtil.getGsonInstance().fromJson(body, SourceConfiguration.class);
 
         // Set thread name at entry point.
-        Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
+        Thread.currentThread().setName("cluster_" + Long.toString(System.currentTimeMillis()));
 
         // Must have callback URL.
         if (StringUtils.isBlank(callbackUrl)) {
@@ -377,7 +376,7 @@ public class NewsFeeder {
             @QueryParam("max") Integer maxMessages,  // Optional
             @QueryParam("in_domain") String internalDomain, String body) {
         // Set thread name at entry point.
-        Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
+        Thread.currentThread().setName("event_" + Long.toString(System.currentTimeMillis()));
         SourceConfiguration config = StringUtil.getGsonInstance().fromJson(body, SourceConfiguration.class);
         // must have external clusters set
         Hope.that(config.rawExternalClusters).named("external_clusters").isNotNull();
@@ -411,7 +410,7 @@ public class NewsFeeder {
             @QueryParam("in_domain") String internalDomain,
             @QueryParam("provider") String provider) {  // Optional
         // Set thread name at entry point.
-        Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
+        Thread.currentThread().setName("thread_" + Long.toString(System.currentTimeMillis()));
 
         // Must have subject.
         if (StringUtils.isBlank(subjectToRetain)) {
@@ -442,7 +441,7 @@ public class NewsFeeder {
             @QueryParam("in_domain") String internalDomain,  // Optional
             String body) {  // Optional
         // Set thread name at entry point.
-        Thread.currentThread().setName(Long.toString(System.currentTimeMillis()));
+        Thread.currentThread().setName("search_" + Long.toString(System.currentTimeMillis()));
 
         SourceConfiguration config = StringUtil.getGsonInstance().fromJson(body, SourceConfiguration.class);
 
@@ -538,9 +537,12 @@ public class NewsFeeder {
                     return source.getEmailAddress(); // needed for clustering later
                 }
                 case exchange: {
-                    String exchangeQuery = request.hasTimeFilter() ? new AQSBuilder().sentBetween(new Date(request.getStartTimeInSec()), new Date(request.getEndTimeInSec())).toQuery()
+                    String exchangeQuery = request.hasTimeFilter() ? new AQSBuilder().sentBetween(new Date(request.getStartTimeInSec() * 1000), new Date(request.getEndTimeInSec() * 1000)).toQuery()
                             : "";
-
+                    if (request.getUserQuery() != null) {
+                        // TODO translate user query
+                        throw new RuntimeException("No user query supported");
+                    }
                     inboxCrawler.addExchangeTask(exchangeQuery, source, request.getExternalClusters(), request.getMaxMessages());
                     return source.getEmailAddress();
                 }
@@ -553,7 +555,7 @@ public class NewsFeeder {
         inboxCrawler.setSubjectRetainPattern(subjectRetainPattern).startCrawl();
         if (inboxCrawler.getMessages() == null ||
                 inboxCrawler.getMessages().isEmpty()) {
-            log.warn("No messages retrieved.");
+            log.warn("No messages retrieved for " + request);
             return projects;
         }
 

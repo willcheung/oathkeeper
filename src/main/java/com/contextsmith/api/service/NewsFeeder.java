@@ -157,7 +157,8 @@ public class NewsFeeder {
     @Path("auth")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public static String authenticate(String body) {
+    public static String authenticate(@HeaderParam("X-Request-ID") String requestID, String body) {
+        setThreadName("auth", requestID);
         Source source = StringUtil.getGsonInstance().fromJson(body, Source.class);
         Hope.that(source.email).named("email").isNotNullOrEmpty();
         Hope.that(source.password).named("password").isNotNullOrEmpty();
@@ -167,6 +168,10 @@ public class NewsFeeder {
             case exchange: return authenticateExchange(source);
             default: return makeJsonError("Unsupported source:" + source.kind);
         }
+    }
+
+    private static void setThreadName(String method, String requestID) {
+        Thread.currentThread().setName(method + '_' + (StringUtils.isBlank(requestID) ? Long.toString(System.currentTimeMillis()) : requestID));
     }
 
     private static String authenticateExchange(Source source) {
@@ -208,6 +213,7 @@ public class NewsFeeder {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public static String clusterEmailsWithCredentials(
+            @HeaderParam("X-Request-ID") String requestID,
             @QueryParam("max") Integer maxMessages,  // Optional
             @QueryParam("preview") Boolean showContent,  // Transient
             @QueryParam("time") Boolean parseTime,  // Transient
@@ -219,11 +225,8 @@ public class NewsFeeder {
             @QueryParam("in_domain") String internalDomain,  // Optional
             @QueryParam("callback") String callbackUrl, String body) {
 
-
+        setThreadName("cluster", requestID);
         SourceConfiguration config = StringUtil.getGsonInstance().fromJson(body, SourceConfiguration.class);
-
-        // Set thread name at entry point.
-        Thread.currentThread().setName("cluster_" + Long.toString(System.currentTimeMillis()));
 
         // Must have callback URL.
         if (StringUtils.isBlank(callbackUrl)) {
@@ -371,12 +374,14 @@ public class NewsFeeder {
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
     public static String gatherEventsWithCredentials(
+            @HeaderParam("X-Request-ID") String requestID,
             @QueryParam("after") Long startTimeInSec,
             @QueryParam("before") Long endTimeInSec,
             @QueryParam("max") Integer maxMessages,  // Optional
             @QueryParam("in_domain") String internalDomain, String body) {
         // Set thread name at entry point.
-        Thread.currentThread().setName("event_" + Long.toString(System.currentTimeMillis()));
+        setThreadName("event", requestID);
+
         SourceConfiguration config = StringUtil.getGsonInstance().fromJson(body, SourceConfiguration.class);
         // must have external clusters set
         Hope.that(config.rawExternalClusters).named("external_clusters").isNotNull();
@@ -399,6 +404,7 @@ public class NewsFeeder {
     @Path("thread")  // unused?
     @Produces(MediaType.APPLICATION_JSON)
     public static String retrieveThread(
+            @HeaderParam("X-Request-ID") String requestID,
             @QueryParam("subject") String subjectToRetain,
             @QueryParam("max") Integer maxMessages,  // Optional
             @QueryParam("time") Boolean parseTime,   // Optional
@@ -410,7 +416,7 @@ public class NewsFeeder {
             @QueryParam("in_domain") String internalDomain,
             @QueryParam("provider") String provider) {  // Optional
         // Set thread name at entry point.
-        Thread.currentThread().setName("thread_" + Long.toString(System.currentTimeMillis()));
+        setThreadName("thread", requestID);
 
         // Must have subject.
         if (StringUtils.isBlank(subjectToRetain)) {
@@ -430,6 +436,7 @@ public class NewsFeeder {
     @Path("search")
     @Produces(MediaType.APPLICATION_JSON)
     public static String searchEmails(
+            @HeaderParam("X-Request-ID") String requestID,
             @QueryParam("max") Integer maxMessages,  // Optional
             @QueryParam("query") String searchQuery,  // Optional
             @QueryParam("time") Boolean parseTime,   // Optional
@@ -441,7 +448,7 @@ public class NewsFeeder {
             @QueryParam("in_domain") String internalDomain,  // Optional
             String body) {  // Optional
         // Set thread name at entry point.
-        Thread.currentThread().setName("search_" + Long.toString(System.currentTimeMillis()));
+        setThreadName("search", requestID);
 
         SourceConfiguration config = StringUtil.getGsonInstance().fromJson(body, SourceConfiguration.class);
 

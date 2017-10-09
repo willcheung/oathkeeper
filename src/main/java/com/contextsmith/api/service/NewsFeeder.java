@@ -192,7 +192,7 @@ public class NewsFeeder {
                     contact.jobTitle = msContact.getJobTitle();
                 }
             }
-
+            log.info("Authenticated " + source.email + " on " + url);
             return StringUtil.toJson(new AuthResult(true, null, url, contact));
         } catch (AutodiscoverUnauthorizedException aue) {
             log.error("Invalid credentials", aue);

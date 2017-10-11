@@ -1,17 +1,11 @@
 package com.contextsmith.email.cluster;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.mail.internet.InternetAddress;
-
 import com.contextsmith.api.data.Messageable;
 import com.contextsmith.utils.MimeMessageUtil.AddressField;
+
+import javax.mail.internet.InternetAddress;
+import java.util.*;
+import java.util.function.Function;
 
 public class EmailPeopleManager {
 
@@ -85,8 +79,51 @@ public class EmailPeopleManager {
   // Returns null if no such messages exist.
   public Collection<Messageable> lookupMessages(InternetAddress address,
                                                 AddressField field) {
-    Map<InternetAddress, List<Messageable>> addrMsgMap =
-        this.fieldAddrMsgMap.get(field);
-    return (addrMsgMap == null) ? null : addrMsgMap.get(address);
+    if (address.getAddress().indexOf('*') != -1) { // support wildcard matches == evil hack
+      final String glob = address.getAddress();
+      Function<InternetAddress, Boolean> matcher = email -> EmailPeopleManager.matches(email.getAddress(), glob);
+      Map<InternetAddress, List<Messageable>> addrMsgMap =
+              this.fieldAddrMsgMap.get(field);
+      if (addrMsgMap != null) {
+        Optional<Map.Entry<InternetAddress, List<Messageable>>> result = addrMsgMap.entrySet().stream().filter(entry -> matcher.apply(entry.getKey())).findFirst();
+        return result.isPresent() ? result.get().getValue() : null;
+      } else {
+        return null;
+      }
+    } else {
+       Map<InternetAddress, List<Messageable>> addrMsgMap = addrMsgMap = this.fieldAddrMsgMap.get(field);
+      return (addrMsgMap == null) ? null : addrMsgMap.get(address); // change this if address == *@bubu.com
+    }
+
   }
+
+  public static boolean matches(String text, String glob) {
+    String rest = null;
+    int pos = glob.indexOf('*');
+    if (pos != -1) {
+        rest = glob.substring(pos + 1);
+        glob = glob.substring(0, pos);
+    }
+
+    if (glob.length() > text.length())
+        return false;
+
+    // handle the part up to the first *
+    for (int i = 0; i < glob.length(); i++)
+        if (glob.charAt(i) != '?'
+                && !glob.substring(i, i + 1).equalsIgnoreCase(text.substring(i, i + 1)))
+            return false;
+
+    // recurse for the part after the first *, if any
+    if (rest == null) {
+        return glob.length() == text.length();
+    } else {
+        for (int i = glob.length(); i <= text.length(); i++) {
+            if (matches(text.substring(i), rest))
+                return true;
+        }
+        return false;
+    }
+}
+
 }

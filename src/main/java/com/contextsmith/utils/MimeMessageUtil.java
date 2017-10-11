@@ -32,6 +32,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -476,7 +477,7 @@ public class MimeMessageUtil {
             ta = MAIL_DATE_FORMATTER.parse(mailDateStr);
         } catch (DateTimeParseException e) {
             log.warn("Error parsing date time: {}", mailDateStr);
-            return ZonedDateTime.from(message.getSentDate().toInstant());
+            return ZonedDateTime.ofInstant(message.getSentDate().toInstant(), ZoneId.of("UTC"));
         }
         return ZonedDateTime.from(ta);
     }

@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.contextsmith</groupId>
     <artifactId>oathkeeper</artifactId>
-    <version>0.3.15-SNAPSHOT</version>
+    <version>0.3.16-SNAPSHOT</version>
 
     <repositories>
         <repository>
@@ -368,5 +368,11 @@
             <artifactId>jersey-media-json-gson</artifactId>
             <version>0.1</version>
         </dependency> -->
+
+        <dependency>
+            <groupId>com.microsoft.services</groupId>
+            <artifactId>outlook</artifactId>
+            <version>1.0.0a</version>
+        </dependency>
     </dependencies>
 </project>

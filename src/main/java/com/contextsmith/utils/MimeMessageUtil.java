@@ -109,7 +109,12 @@ public class MimeMessageUtil {
                 collectAttachments(msg, mp.getBodyPart(i), collectionOfAttachments, path + "," + i, filters);
             }
         } else if (p.isMimeType("message/rfc822")) {
-            collectAttachments(msg, (Part) p.getContent(), collectionOfAttachments, path + ",c", filters);
+            Object content = p.getContent();
+            if (content instanceof Part) {
+                collectAttachments(msg, (Part)content, collectionOfAttachments, path + ",c", filters);
+            } else {
+                // ignore e-mail attachments for now
+            }
         } else { // this might be an attachment
             String fileName = p.getFileName();
             String disp = p.getDisposition();
@@ -128,21 +133,7 @@ public class MimeMessageUtil {
                 String attachmentID = getFirstHeader(p, X_ATTACHMENT_ID, path); // series of child indices into MimeMessage tree
                 String urn = toURN(provider, email, messageID, attachmentID);
 
-                String sha = null;
-                Object o = p.getContent();
-                if (o instanceof String) {
-                    log.debug("String content");
-                    String stringContent = o.toString();
-                    if (!stringContent.isEmpty()) {
-                        sha = DigestUtils.sha256Hex(o.toString());
-                    }
-                } else if (o instanceof InputStream) {
-                    log.debug("input stream content");
-                    InputStream is = (InputStream) o;
-                    sha = DigestUtils.sha256Hex(is);
-                } else {
-                    log.debug("Unknown type");
-                }
+                String sha = calculateHash(p);
                 String fullMime = p.getContentType();
                 String baseType = fullMime;
                 try {
@@ -156,6 +147,29 @@ public class MimeMessageUtil {
             }
         }
 
+    }
+
+    private static String calculateHash(Part p) throws IOException, MessagingException {
+        String sha = null;
+        try {
+            Object o = p.getContent();
+            if (o instanceof String) {
+                log.debug("String content");
+                String stringContent = o.toString();
+                if (!stringContent.isEmpty()) {
+                    sha = DigestUtils.sha256Hex(o.toString());
+                }
+            } else if (o instanceof InputStream) {
+                log.debug("input stream content");
+                InputStream is = (InputStream) o;
+                sha = DigestUtils.sha256Hex(is);
+            } else {
+                log.debug("Unknown type");
+            }
+        } catch (Exception e) {
+            log.error("Creating mail hash failed", e);
+        }
+        return sha;
     }
 
     public static Multimap<String, String> collectPartsRecursively(
@@ -447,6 +461,7 @@ public class MimeMessageUtil {
 
     public static ZonedDateTime getSentDate(MimeMessage message)
             throws MessagingException {
+        message.getSentDate();
         String mailDateStr = getFirstHeader(message, SENT_DATE_HEADER);
         if (mailDateStr == null) return null;
 
@@ -460,8 +475,8 @@ public class MimeMessageUtil {
         try {
             ta = MAIL_DATE_FORMATTER.parse(mailDateStr);
         } catch (DateTimeParseException e) {
-            log.error("Error parsing date time: {}", mailDateStr);
-            return null;
+            log.warn("Error parsing date time: {}", mailDateStr);
+            return ZonedDateTime.from(message.getSentDate().toInstant());
         }
         return ZonedDateTime.from(ta);
     }

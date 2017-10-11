@@ -6,6 +6,8 @@ import com.contextsmith.nlp.sentiment.SentimentItem;
 import com.contextsmith.nlp.time.TemporalItem;
 import com.contextsmith.utils.MimeMessageUtil;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.mail.MessagingException;
 import javax.mail.internet.InternetAddress;
@@ -18,6 +20,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 public class EmailMessage extends AbstractMessage {
+    Logger log = LoggerFactory.getLogger(EmailMessage.class);
     private ZonedDateTime sentDate;
     private MailContent content;
     private Boolean isPrivate;
@@ -72,7 +75,9 @@ public class EmailMessage extends AbstractMessage {
         if (this.messageId == null) {
             throw new MessagingException("Unable to extract message ID for " + message);
         } else if (this.sentDate == null) {  // Must have both.
-            throw new MessagingException("No sent date available in message " + message);
+            log.warn("No sent date available in message " + message);
+            log.warn("Setting to now");
+            this.sentDate = ZonedDateTime.now();
         }
 
         if (StringUtils.isNotBlank(message.getSubject())) {

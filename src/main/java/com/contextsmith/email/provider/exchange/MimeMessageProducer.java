@@ -15,6 +15,8 @@ import microsoft.exchange.webservices.data.property.complex.EmailAddress;
 import microsoft.exchange.webservices.data.search.FindItemsResults;
 import microsoft.exchange.webservices.data.search.ItemView;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 
 import javax.mail.Address;
@@ -34,7 +36,7 @@ import java.util.Queue;
  */
 public class MimeMessageProducer {
     static final Session session = Session.getDefaultInstance(new Properties());
-
+    static final Logger log = LoggerFactory.getLogger(MimeMessageProducer.class);
     private ItemView view;
     private ExchangeService service;
     private Queue<MimeMessage> currentBatch;
@@ -80,14 +82,17 @@ public class MimeMessageProducer {
         for (Item item : findResults.getItems()) {
             if (item instanceof EmailMessage) {
                 EmailMessage msg = ((EmailMessage) item);
-                currentBatch.add(buildMimeMessage(msg));
+                MimeMessage mmsg = buildMimeMessage(msg);
+                if (mmsg != null) {
+                    currentBatch.add(mmsg);
+                }
             } else {
                 System.out.println(item.getClass());
             }
             // Do something with the item.
             itemsRetrieved++;
             if (itemsRetrieved % pageSize == 0) {
-                System.out.format("Received " + itemsRetrieved + " e-mails\n");
+                log.info("Received " + itemsRetrieved + " e-mails:" + service);
             }
         }
         view.setOffset(view.getOffset() + pageSize);
@@ -96,43 +101,53 @@ public class MimeMessageProducer {
     }
 
     private MimeMessage buildMimeMessage(EmailMessage msg) throws Exception {
-        MimeMessage mime = new MimeMessage(session);
-        Address[] from = new Address[] { toIA(msg.getFrom()) };
-        mime.addFrom(from);
-        mime.setSender(toIA(msg.getSender()));
-        mime.setSubject(msg.getSubject());
-        mime.setSentDate(msg.getDateTimeSent());
-        for (EmailAddress ea : msg.getToRecipients()) {
-            mime.addRecipient(Message.RecipientType.TO, toIA(ea));
-        }
-        for (EmailAddress ea : msg.getCcRecipients()) {
-            mime.addRecipient(Message.RecipientType.CC, toIA(ea));
-        }
-        String mimeType = msg.getBody().getBodyType() == BodyType.HTML ? "text/html" : "text/plain";
-        mime.addHeader("Message-ID", msg.getInternetMessageId());
-        mime.addHeader(MimeMessageUtil.X_PRIVATE_ID, msg.getId() != null ? msg.getId().getUniqueId() : "");
-        mime.addHeader(MimeMessageUtil.X_SOURCE, NewsFeederRequest.Provider.exchange.toString());
-
-        if (msg.getHasAttachments()) {
-            MimeMultipart mp = new MimeMultipart();
-            MimeBodyPart textPart = new MimeBodyPart();
-            textPart.setContent(msg.getBody().toString(), mimeType);
-            mp.addBodyPart(textPart);
-
-            for (Attachment at : msg.getAttachments()) {
-                if (at.getIsInline() || StringUtils.isBlank(at.getName())) continue; // ignore non-file attachments and inline attachments
-                MimeBodyPart attachmentPart = new MimeBodyPart();
-                attachmentPart.setContent("", at.getContentType());  // no actual content, we just pretend at the moment. TODO download content
-                attachmentPart.addHeader(MimeMessageUtil.X_ATTACHMENT_ID, at.getId());
-                attachmentPart.setFileName(at.getName());
-                mp.addBodyPart(attachmentPart);
+        try {
+            MimeMessage mime = new MimeMessage(session);
+            Address[] from = new Address[]{toIA(msg.getFrom())};
+            mime.addFrom(from);
+            mime.setSender(toIA(msg.getSender()));
+            mime.setSubject(msg.getSubject());
+            mime.setSentDate(msg.getDateTimeSent());
+            for (EmailAddress ea : msg.getToRecipients()) {
+                mime.addRecipient(Message.RecipientType.TO, toIA(ea));
             }
-            mime.setContent(mp);
-        } else {
-            mime.setContent(msg.getBody().toString(), mimeType);
+            for (EmailAddress ea : msg.getCcRecipients()) {
+                mime.addRecipient(Message.RecipientType.CC, toIA(ea));
+            }
+            String mimeType = msg.getBody().getBodyType() == BodyType.HTML ? "text/html" : "text/plain";
+            mime.addHeader("Message-ID", msg.getInternetMessageId());
+            mime.addHeader(MimeMessageUtil.X_PRIVATE_ID, msg.getId() != null ? msg.getId().getUniqueId() : "");
+            mime.addHeader(MimeMessageUtil.X_SOURCE, NewsFeederRequest.Provider.exchange.toString());
+
+            if (msg.getHasAttachments()) {
+                MimeMultipart mp = new MimeMultipart();
+                MimeBodyPart textPart = new MimeBodyPart();
+                textPart.setContent(msg.getBody().toString(), mimeType);
+                mp.addBodyPart(textPart);
+
+                for (Attachment at : msg.getAttachments()) {
+                    if (at.getIsInline() || StringUtils.isBlank(at.getName()))
+                        continue; // ignore non-file attachments and inline attachments
+                    MimeBodyPart attachmentPart = new MimeBodyPart();
+                    if (!StringUtils.isBlank(at.getContentType())) {
+                        attachmentPart.setContent("", at.getContentType());  // no actual content, we just pretend at the moment. TODO download content
+                        attachmentPart.addHeader(MimeMessageUtil.X_ATTACHMENT_ID, at.getId());
+                        attachmentPart.setFileName(at.getName());
+                        mp.addBodyPart(attachmentPart);
+                    } else {
+                        log.warn("content type for outlook attachments is null " + msg + "at:" + at);
+                    }
+                }
+                mime.setContent(mp);
+            } else {
+                mime.setContent(msg.getBody().toString(), mimeType);
+            }
+            mime.saveChanges();
+            return mime;
+        } catch (Exception exp) {
+            log.error("Failed to build mime message for: " + msg, exp);
         }
-        mime.saveChanges();
-        return mime;
+        return null;
     }
 
     private static InternetAddress toIA(EmailAddress ea) throws UnsupportedEncodingException {

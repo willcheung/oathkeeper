@@ -247,7 +247,7 @@ public class UserInboxCrawler {
                     log.error(e.getCause().getMessage().replaceAll("\\s+", " "));
                     googleJsonException = (GoogleJsonResponseException) e.getCause();
                 } else {
-                    log.error(e.toString());
+                    log.error("Unable to get the mail data for:" + inbox, e);
                     e.printStackTrace();
                 }
             }

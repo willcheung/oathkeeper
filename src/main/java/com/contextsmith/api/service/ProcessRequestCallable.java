@@ -1,5 +1,11 @@
 package com.contextsmith.api.service;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.client.utils.URIBuilder;
+import org.eclipse.jetty.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -8,12 +14,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
-
-import org.apache.commons.lang3.StringUtils;
-import org.apache.http.client.utils.URIBuilder;
-import org.eclipse.jetty.http.HttpStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class ProcessRequestCallable implements Callable<String> {
   private static final Logger log = LoggerFactory.getLogger(
@@ -56,6 +56,7 @@ public class ProcessRequestCallable implements Callable<String> {
   }
 
   private static int sendHttpPost(URL url, String json) throws IOException {
+    log.info("Preparing POST to longclaw for results of " + url + "\nSize:" + json.length());
     log.debug("Posting json ({} bytes) to URL: {}",
               json.getBytes().length, url);
     HttpURLConnection conn = (HttpURLConnection) url.openConnection();

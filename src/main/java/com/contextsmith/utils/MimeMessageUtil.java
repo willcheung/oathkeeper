@@ -17,21 +17,20 @@ import org.slf4j.LoggerFactory;
 
 import javax.activation.MimeType;
 import javax.activation.MimeTypeParseException;
-import javax.mail.Address;
+import javax.mail.*;
 import javax.mail.Message.RecipientType;
-import javax.mail.MessagingException;
-import javax.mail.Multipart;
-import javax.mail.Part;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import javax.ws.rs.core.MediaType;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -476,7 +475,7 @@ public class MimeMessageUtil {
             ta = MAIL_DATE_FORMATTER.parse(mailDateStr);
         } catch (DateTimeParseException e) {
             log.warn("Error parsing date time: {}", mailDateStr);
-            return ZonedDateTime.from(message.getSentDate().toInstant());
+            return ZonedDateTime.ofInstant(message.getSentDate().toInstant(), ZoneId.of("UTC"));
         }
         return ZonedDateTime.from(ta);
     }
@@ -680,6 +679,20 @@ public class MimeMessageUtil {
         return (Part)p;
     }
 
+    /** Quick debug function to turn a message into its raw form. */
+    public static String toString(MimeMessage msg) {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try {
+            msg.writeTo(bos);
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("ERROR CONVERTING: " + getFirstHeader(msg, MimeMessageUtil.X_PRIVATE_ID) + "\nMessageId:" + getMessageId(msg));
+        } catch (MessagingException e) {
+            e.printStackTrace();
+        }
+        return bos.toString();
+    }
+
     public static String toURN(String provider, String email, String internalID, String fragment) {
         assert internalID.indexOf('#') == -1;
         return "urn:email:" + encode(provider) + ":" + encode(email) + ":" + encode(internalID)
@@ -718,5 +731,18 @@ public class MimeMessageUtil {
 
     public interface PartFilter {
         boolean test(Part t) throws MessagingException;
+    }
+
+    /** A mime message that doesn't change the message ID header when saveChanges is called. Used for messages where we already know the message ID */
+    public static class FixedMimeMessage extends MimeMessage {
+
+        public FixedMimeMessage(Session session) {
+            super(session);
+        }
+
+        protected void updateMessageID () throws MessagingException {
+                // don't try to calculate one
+        }
+
     }
 }

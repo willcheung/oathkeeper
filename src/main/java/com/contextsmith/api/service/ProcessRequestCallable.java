@@ -71,7 +71,7 @@ public class ProcessRequestCallable implements Callable<String> {
     os.close();
 
     int responseCode = conn.getResponseCode();
-    if (responseCode == HttpStatus.OK_200) {
+    if (responseCode == HttpStatus.OK_200 || responseCode == HttpStatus.ACCEPTED_202) {
       log.info("POST successful! Response: {}, {}", responseCode,
                conn.getResponseMessage());
     } else {

@@ -1,26 +1,21 @@
 package com.contextsmith.api.service;
 
-import java.lang.reflect.Type;
-import java.util.*;
-import java.util.stream.Collectors;
-
-import javax.mail.internet.InternetAddress;
-
+import com.contextsmith.api.service.NewsFeeder.MessageType;
+import com.contextsmith.email.cluster.EmailClusterer.ClusteringMethod;
 import com.contextsmith.utils.Environment;
+import com.contextsmith.utils.InternetAddressUtil;
 import com.contextsmith.utils.Mode;
-
+import com.contextsmith.utils.StringUtil;
+import com.google.gson.reflect.TypeToken;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.contextsmith.api.service.NewsFeeder.MessageType;
-import com.contextsmith.email.cluster.EmailClusterer.ClusteringMethod;
-import com.contextsmith.utils.InternetAddressUtil;
-import com.contextsmith.utils.StringUtil;
-import com.google.gson.JsonSyntaxException;
-import com.google.gson.reflect.TypeToken;
+import javax.mail.internet.InternetAddress;
+import java.lang.reflect.Type;
+import java.util.*;
+import java.util.stream.Collectors;
 
-import static com.contextsmith.api.service.NewsFeederRequest.Provider.exchange;
 import static com.contextsmith.api.service.NewsFeederRequest.Provider.gmail;
 
 public class NewsFeederRequest {
@@ -223,7 +218,8 @@ public class NewsFeederRequest {
 
     public enum Provider {
         gmail,
-        exchange
+        exchange,
+        office365
     }
 
     // Input: "abc|def|ghi@xyz.com"

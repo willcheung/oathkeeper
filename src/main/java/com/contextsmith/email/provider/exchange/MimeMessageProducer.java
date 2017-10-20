@@ -21,6 +21,7 @@ import reactor.core.publisher.Flux;
 
 import javax.mail.Address;
 import javax.mail.Message;
+import javax.mail.MessagingException;
 import javax.mail.Session;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeBodyPart;
@@ -52,7 +53,7 @@ public class MimeMessageProducer {
 
     public void prepare() throws Exception {
         view = new ItemView(Math.min(pageSize, maxCount));
-        view.getOrderBy().add(ItemSchema.DateTimeReceived, SortDirection.Ascending);
+        view.getOrderBy().add(ItemSchema.DateTimeReceived, SortDirection.Descending);
     }
 
     MimeMessage produceNext() throws Exception {
@@ -102,7 +103,7 @@ public class MimeMessageProducer {
 
     private MimeMessage buildMimeMessage(EmailMessage msg) throws Exception {
         try {
-            MimeMessage mime = new MimeMessage(session);
+            MimeMessage mime = new MimeMessageUtil.FixedMimeMessage(session);
             Address[] from = new Address[]{toIA(msg.getFrom())};
             mime.addFrom(from);
             mime.setSender(toIA(msg.getSender()));
@@ -130,7 +131,11 @@ public class MimeMessageProducer {
                         continue; // ignore non-file attachments and inline attachments
                     MimeBodyPart attachmentPart = new MimeBodyPart();
                     if (!StringUtils.isBlank(at.getContentType())) {
-                        attachmentPart.setContent("", at.getContentType());  // no actual content, we just pretend at the moment. TODO download content
+                        if (at.getContentType().equalsIgnoreCase("message/rfc822")) {
+                            attachmentPart.setContent(new EmptyMimeMessage(), at.getContentType());
+                        } else {
+                            attachmentPart.setContent("", at.getContentType());  // no actual content, we just pretend at the moment. TODO download content
+                        }
                         attachmentPart.addHeader(MimeMessageUtil.X_ATTACHMENT_ID, at.getId());
                         attachmentPart.setFileName(at.getName());
                         mp.addBodyPart(attachmentPart);
@@ -185,5 +190,16 @@ public class MimeMessageProducer {
     public MimeMessageProducer maxMessages(int max) {
         this.maxCount = max;
         return this;
+    }
+
+    static class EmptyMimeMessage extends MimeMessage {
+        EmptyMimeMessage() {
+            super(MimeMessageProducer.session);
+            try {
+                setText("");
+            } catch (MessagingException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }

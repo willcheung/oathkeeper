@@ -9,6 +9,7 @@ import com.contextsmith.email.provider.UserEventCrawler;
 import com.contextsmith.email.provider.UserInboxCrawler;
 import com.contextsmith.email.provider.exchange.AQSBuilder;
 import com.contextsmith.email.provider.exchange.ExchangeServiceProvider;
+import com.contextsmith.email.provider.office365.Office365ServiceProvider;
 import com.contextsmith.utils.*;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -92,7 +93,8 @@ public class NewsFeeder {
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-                break;
+            case office365:
+                return Response.status(Response.Status.UNSUPPORTED_MEDIA_TYPE).build(); // TODO - add download support
 
         }
         return Response.status(404).build();
@@ -192,7 +194,7 @@ public class NewsFeeder {
                     contact.jobTitle = msContact.getJobTitle();
                 }
             }
-
+            log.info("Authenticated " + source.email + " on " + url);
             return StringUtil.toJson(new AuthResult(true, null, url, contact));
         } catch (AutodiscoverUnauthorizedException aue) {
             log.error("Invalid credentials", aue);
@@ -284,6 +286,7 @@ public class NewsFeeder {
 
         Optional<UncheckedValidationException> validationResult = Arrays.stream(config.sources).map(source -> {
             try {
+                Hope.that(source).named("source").isNotNull();
                 Hope.that(source.kind).named("kind").isNotNull();
                 switch (source.kind) {
                     case exchange:
@@ -291,6 +294,7 @@ public class NewsFeeder {
                         Hope.that(source.password).named("password").isNotNullOrEmpty();
                         break;
                     case gmail:
+                    case office365:
                         Hope.that(source.email).isNotNullOrEmpty();
                         Hope.that(source.token).isNotNullOrEmpty();
                         break;
@@ -451,6 +455,7 @@ public class NewsFeeder {
         setThreadName("search", requestID);
 
         SourceConfiguration config = StringUtil.getGsonInstance().fromJson(body, SourceConfiguration.class);
+        Hope.that(config.getExternalClusters()).named("external_clusters").isNotNullOrEmpty();
 
         final MessageType MSG_TYPE = MessageType.EMAIL;
         final boolean SHOW_CONTENT = true;
@@ -500,21 +505,6 @@ public class NewsFeeder {
         return jsonOutput;
     }
 
-    private static String checkExternalCluster(String externalClusterJson) {
-        // Must have external members.
-        if (StringUtils.isBlank(externalClusterJson)) {
-            return makeJsonError("Missing 'ex_clusters' parameter.");
-        } else {
-            List<Set<InternetAddress>> clusters =
-                    NewsFeederRequest.parseExternalClusterJson(externalClusterJson);
-            if (clusters == null || clusters.isEmpty()) {
-                return makeJsonError(
-                        "Invalid 'ex_clusters' parameter: " + externalClusterJson);
-            }
-        }
-        return null;
-    }
-
     // Should not return 'null'.
     private static Set<Project> makeEmailProjects(NewsFeederRequest request)
             throws GoogleJsonResponseException {
@@ -527,7 +517,7 @@ public class NewsFeeder {
             subjectRetainPattern = Pattern.compile("^\\Q" + subjectToRetain + "\\E$");
             subjectQuery = String.format("subject:\"%s\"", subjectToRetain);
         }
-        UserInboxCrawler inboxCrawler = new UserInboxCrawler(accessToken -> new GoogleServiceProvider(accessToken), () -> new ExchangeServiceProvider());
+        UserInboxCrawler inboxCrawler = new UserInboxCrawler();
 
         String finalSubjectQuery = subjectQuery; // needed for lambda
         List<InternetAddress> aliases = Arrays.stream(request.getSourceConfiguration().sources).map(source -> {
@@ -540,7 +530,7 @@ public class NewsFeeder {
                             .addAfterDate(request.getStartTimeInSec())
                             .addClusters(request.getExternalClusters())
                             .build();
-                    inboxCrawler.addGmailTask(gmailQuery, source.token, source.email, request.getMaxMessages());
+                    inboxCrawler.addGmailTask(accessToken -> new GoogleServiceProvider(accessToken), gmailQuery, source.token, source.email, request.getMaxMessages());
                     return source.getEmailAddress(); // needed for clustering later
                 }
                 case exchange: {
@@ -550,9 +540,14 @@ public class NewsFeeder {
                         // TODO translate user query
                         throw new RuntimeException("No user query supported");
                     }
-                    inboxCrawler.addExchangeTask(exchangeQuery, source, request.getExternalClusters(), request.getMaxMessages());
+                    inboxCrawler.addExchangeTask(ExchangeServiceProvider::new, exchangeQuery, source, request.getExternalClusters(), request.getMaxMessages());
                     return source.getEmailAddress();
                 }
+                case office365:
+                    String exchangeQuery = request.hasTimeFilter() ? new AQSBuilder().sentBetween(new Date(request.getStartTimeInSec() * 1000), new Date(request.getEndTimeInSec() * 1000)).toQuery()
+                            : "";
+                    inboxCrawler.addOffice365Task(token -> new Office365ServiceProvider().createClient(token), exchangeQuery, source, request.getExternalClusters(), request.getMaxMessages());
+                    return source.getEmailAddress();
             }
             return null;
         }).collect(Collectors.toList());
@@ -625,11 +620,11 @@ public class NewsFeeder {
             return projects;
         }
 
-        UserEventCrawler eventCrawler = new UserEventCrawler(accessToken -> new GoogleServiceProvider(accessToken), () -> new ExchangeServiceProvider());
+        UserEventCrawler eventCrawler = new UserEventCrawler();
         List<InternetAddress> aliases = Arrays.stream(request.getSourceConfiguration().sources).map(source -> {
             switch (source.kind) {
                 case gmail: {
-                    eventCrawler.addGmailTask(source.token,
+                    eventCrawler.addGmailTask(GoogleServiceProvider::new, source.token,
                             source.email,
                             request.getStartTimeInSec(),
                             request.getEndTimeInSec(),
@@ -637,9 +632,12 @@ public class NewsFeeder {
                     return source.getEmailAddress(); // needed for clustering later
                 }
                 case exchange: {
-                    eventCrawler.addExchangeTask(source, request.getStartTimeInSec() * 1000L, request.getEndTimeInSec() * 1000, request.getMaxMessages());
+                    eventCrawler.addExchangeTask(ExchangeServiceProvider::new, source, request.getStartTimeInSec() * 1000L, request.getEndTimeInSec() * 1000, request.getMaxMessages());
                     return source.getEmailAddress();
                 }
+                case office365:
+                    eventCrawler.addOffice365Task(token -> new Office365ServiceProvider().createClient(token), source, request.getStartTimeInSec() * 1000L, request.getEndTimeInSec() * 1000, request.getMaxMessages());
+                    return source.getEmailAddress();
             }
             return null;
         }).collect(Collectors.toList());

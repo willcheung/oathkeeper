@@ -6,10 +6,12 @@ import com.contextsmith.api.service.Source;
 import com.contextsmith.email.cluster.EmailNameResolver;
 import com.contextsmith.email.provider.exchange.ExchangeServiceProvider;
 import com.contextsmith.email.provider.exchange.MimeMessageProducer;
+import com.contextsmith.email.provider.office365.MSGraphMimeMessageProducer;
 import com.contextsmith.utils.MimeMessageUtil;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.microsoft.graph.extensions.IGraphServiceClient;
 import microsoft.exchange.webservices.data.core.ExchangeService;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -35,7 +37,6 @@ public class UserInboxCrawler {
     public static final String DEFAULT_GMAIL_USER = "me";
     private static final Logger log = LoggerFactory.getLogger(UserInboxCrawler.class);
     public static int SHUTDOWN_WAIT_TIME_IN_MILLIS = 1000;
-    private Function<String, GoogleServiceProvider> googleServiceProvider;
     private Supplier<ExchangeServiceProvider> exchangeServiceProvider;
     private EmailFilterer emailFilterer;
     private EmailNameResolver enResolver;
@@ -45,9 +46,8 @@ public class UserInboxCrawler {
     private Set<Callable<List<MimeMessage>>> callables;
     private List<Future<List<MimeMessage>>> futures;
     private Pattern subjectRetainPattern;
-    public UserInboxCrawler(Function<String, GoogleServiceProvider> googleServiceProvider, Supplier<ExchangeServiceProvider> exchangeServiceProvider) {
-        this.googleServiceProvider = googleServiceProvider;
-        this.exchangeServiceProvider = exchangeServiceProvider;
+
+    public UserInboxCrawler() {
         this.executor = Executors.newCachedThreadPool(
                 new ThreadFactoryBuilder().setNameFormat(
                         Thread.currentThread().getName() + ".%d").build());
@@ -55,12 +55,9 @@ public class UserInboxCrawler {
         this.emailFilterer = new EmailFilterer();
         this.enResolver = new EmailNameResolver();
         this.messages = new ArrayList<>();
-
-        this.unfilteredMimeMessages = null;
-        this.subjectRetainPattern = null;
     }
 
-    public void addGmailTask(final String query, final String accessToken,
+    public void addGmailTask(Function<String, GoogleServiceProvider> googleServiceProvider, final String query, final String accessToken,
                              final String email, final int maxMessages) {
         this.callables.add(new Callable<List<MimeMessage>>() {
             @Override
@@ -84,25 +81,36 @@ public class UserInboxCrawler {
         });
     }
 
-    public void addExchangeTask(String exchangeQuery, Source source, List<Set<InternetAddress>> externalClusters, int maxMessages) {
-
+    public void addExchangeTask(Supplier<ExchangeServiceProvider> exchangeServiceProvider, String exchangeQuery, Source source, List<Set<InternetAddress>> externalClusters, int maxMessages) {
         this.callables.add(() -> {
             ExchangeService exchangeService = exchangeServiceProvider.get().connectAsUser(source.email, source.password.toCharArray(), source.url);
             MimeMessageProducer producer = new MimeMessageProducer(exchangeService).query(exchangeQuery).maxMessages(maxMessages);
-            Runtime runtime = Runtime.getRuntime();
-            long usedMemoryBefore = runtime.totalMemory() - runtime.freeMemory();
-            System.out.println("Used Memory before: " + usedMemoryBefore / 1_000_000);
-            long startTime = System.currentTimeMillis();
-            Flux<MimeMessage> mimeMessageFlux = producer.asFlux();
-
-            List<MimeMessage> mimeMessages = filterMessages(source, externalClusters, mimeMessageFlux);
-
-            System.out.println("Received " + mimeMessages.size() + " messages");
-            long usedMemoryAfter = runtime.totalMemory() - runtime.freeMemory();
-            System.out.println("Memory increased: " + (usedMemoryAfter - usedMemoryBefore) / 1_000_000);
-            System.out.println("Duration (s): " + (System.currentTimeMillis() - startTime) / 1000.0);
-            return mimeMessages;
+            return produceMessages(source, externalClusters, producer.asFlux());
         });
+    }
+
+    public void addOffice365Task(Function<String, IGraphServiceClient> office365Provider, String exchangeQuery, Source source, List<Set<InternetAddress>> externalClusters, int maxMessages) {
+        this.callables.add(() -> {
+            IGraphServiceClient client = office365Provider.apply(source.token);
+            MSGraphMimeMessageProducer producer = new MSGraphMimeMessageProducer(client).query(exchangeQuery).maxMessages(maxMessages);
+            return produceMessages(source, externalClusters, producer.asFlux());
+        });
+    }
+
+    /** Measure flux and time for producing messages from Exchange or Outlook. */
+    private List<MimeMessage> produceMessages(Source source, List<Set<InternetAddress>> externalClusters, Flux<MimeMessage> mimeMessageFlux) {
+        Runtime runtime = Runtime.getRuntime();
+        long usedMemoryBefore = runtime.totalMemory() - runtime.freeMemory();
+        System.out.println("Used Memory before: " + usedMemoryBefore / 1_000_000);
+        long startTime = System.currentTimeMillis();
+
+        List<MimeMessage> mimeMessages = filterMessages(source, externalClusters, mimeMessageFlux);
+
+        System.out.println("Received " + mimeMessages.size() + " messages");
+        long usedMemoryAfter = runtime.totalMemory() - runtime.freeMemory();
+        System.out.println("Memory increased: " + (usedMemoryAfter - usedMemoryBefore) / 1_000_000);
+        System.out.println("Duration (s): " + (System.currentTimeMillis() - startTime) / 1000.0);
+        return mimeMessages;
     }
 
     List<MimeMessage> filterMessages(Source source, List<Set<InternetAddress>> externalClusters, Flux<MimeMessage> mimeMessageFlux) {
@@ -113,7 +121,7 @@ public class UserInboxCrawler {
                 try {
                     Address[] allRecipients = msg.getAllRecipients();
                     Address[] from = msg.getFrom();
-                    return findAny(from, allAddresses) || findAny(allRecipients, allAddresses);
+                    return allRecipients != null && (findAny(from, allAddresses) || findAny(allRecipients, allAddresses));
                 } catch (MessagingException e) {
                     log.error("Unable to parse address", e);
                 }
@@ -131,6 +139,9 @@ public class UserInboxCrawler {
     }
 
     private boolean findAny(Address[] addresses, HashSet<InternetAddress> allAddresses) {
+        if (addresses == null) {
+            return false;
+        }
         for (Address a : addresses) {
             if (allAddresses.contains(a))
                 return true;

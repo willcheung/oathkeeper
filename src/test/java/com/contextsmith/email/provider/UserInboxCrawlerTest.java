@@ -1,21 +1,19 @@
 package com.contextsmith.email.provider;
 
 import com.contextsmith.api.service.Source;
-import com.contextsmith.email.provider.exchange.ExchangeServiceProvider;
 import org.junit.Test;
 import reactor.core.publisher.Flux;
 
 import javax.mail.Message;
-import javax.mail.MessagingException;
 import javax.mail.Session;
 import javax.mail.internet.AddressException;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
-
 import java.util.*;
 import java.util.stream.Collectors;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by beders on 5/22/17.
@@ -55,7 +53,7 @@ public class UserInboxCrawlerTest {
 
     @Test
     public void filterMessages() throws Exception {
-        UserInboxCrawler crawler = new UserInboxCrawler((p) -> null, () -> null);
+        UserInboxCrawler crawler = new UserInboxCrawler();
         // test null-hypothesis
 
         Flux<MimeMessage> msgs = Flux.fromIterable(testData);

@@ -1,7 +1,5 @@
 package com.contextsmith.email.provider.exchange;
 
-import com.contextsmith.utils.MimeMessageUtil;
-import com.contextsmith.utils.StringUtil;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.EventAttendee;
@@ -9,11 +7,9 @@ import com.google.api.services.calendar.model.EventDateTime;
 import microsoft.exchange.webservices.data.core.ExchangeService;
 import microsoft.exchange.webservices.data.core.PropertySet;
 import microsoft.exchange.webservices.data.core.enumeration.property.WellKnownFolderName;
-import microsoft.exchange.webservices.data.core.exception.service.local.ServiceLocalException;
 import microsoft.exchange.webservices.data.core.service.folder.CalendarFolder;
 import microsoft.exchange.webservices.data.core.service.item.Appointment;
 import microsoft.exchange.webservices.data.property.complex.Attendee;
-import microsoft.exchange.webservices.data.property.complex.AttendeeCollection;
 import microsoft.exchange.webservices.data.property.complex.EmailAddress;
 import microsoft.exchange.webservices.data.search.CalendarView;
 import microsoft.exchange.webservices.data.search.FindItemsResults;
@@ -90,7 +86,7 @@ public class EventProducer {
             }
         }
 
-        return itemsRetrieved < maxCount ? findResults.isMoreAvailable() : false; // false == no more items
+        return itemsRetrieved < maxCount && findResults.isMoreAvailable(); // false == no more items
     }
 
     private Event buildEvent(Appointment appt) throws Exception {
@@ -105,9 +101,9 @@ public class EventProducer {
                 .concatWith(Flux.fromIterable(appt.getOptionalAttendees()))
                 .map(this::toEventAttendee).doOnNext(att -> System.out.println(att.getEmail())).collectList().block();
         e.setAttendees(attendees);
-        DateTime createDate = new DateTime(appt.getDateTimeCreated());
+        DateTime createDate = new DateTime(appt.getDateTimeCreated(), TimeZone.getTimeZone("UTC"));
         e.setCreated(createDate);
-        e.setUpdated(new DateTime(appt.getLastModifiedTime()));
+        e.setUpdated(new DateTime(appt.getLastModifiedTime(), TimeZone.getTimeZone("UTC")));
         EventDateTime startDate = new EventDateTime().setDateTime(new DateTime(appt.getStart()));
         EventDateTime endDate = new EventDateTime().setDateTime(new DateTime(appt.getEnd()));
         e.setStart(startDate).setEnd(endDate);
